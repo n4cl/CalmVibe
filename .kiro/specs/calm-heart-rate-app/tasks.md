@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Expo基盤セットアップと依存追加
+- [x] 1. Expo基盤セットアップと依存追加
   - Expo Go/Dev Buildで動作確認しつつ、`expo-haptics` と `expo-sqlite` を追加し初期化コードを準備。
   - 画面構成のベース（Settings / Session / Logs）とナビゲーション（expo-router等）を用意し、Keep Awakeの仕組みを組み込む。
   - _Requirements: 2.1,2.5_
