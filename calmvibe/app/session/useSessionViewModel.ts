@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { GuidanceEngine, GuidanceMode } from '../../src/guidance/types';
 import { SettingsRepository, SettingsValues } from '../../src/settings/types';
-import { mapPatternToMs } from './utils';
+import { singleBeatPattern } from './utils';
 
 export type SessionViewModel = {
   mode: GuidanceMode;
@@ -33,8 +33,7 @@ export const useSessionViewModel = ({
   const start = useCallback(async () => {
     if (running) return;
     const settings = await loadSettings();
-    const pattern =
-      mode === 'BREATH' ? [] : mapPatternToMs(settings.pattern);
+    const pattern = mode === 'BREATH' ? [] : singleBeatPattern;
     const result = await engine.startGuidance(
       {
         bpm: settings.bpm,

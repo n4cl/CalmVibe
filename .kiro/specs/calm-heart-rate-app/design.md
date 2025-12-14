@@ -69,8 +69,8 @@ sequenceDiagram
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
 | 1.1 | BPM入力/スライダー保存 | SettingsScreen, SettingsVM, SettingsRepo | SettingsRepository | - |
-| 1.2 | パターン/強度保存 | SettingsScreen, SettingsVM, SettingsRepo | SettingsRepository | - |
-| 1.3 | プレビューでパターン反映 | SettingsScreen, HapticsAdapter | HapticsAdapter | - |
+| 1.2 | 強度保存 | SettingsScreen, SettingsVM, SettingsRepo | SettingsRepository | - |
+| 1.3 | プレビューで単発振動を確認 | SettingsScreen, HapticsAdapter | HapticsAdapter | - |
 | 1.4 | 次回自動適用 | SettingsVM | SettingsRepository | - |
 | 1.5 | セッション時間設定 | SettingsScreen, SettingsVM, SettingsRepo | SettingsRepository | - |
 | 2.1 | 即時開始（振動優先、視覚切替） | SessionScreen/VM, SessionUseCase | SessionUseCase | セッション開始 |
@@ -86,7 +86,7 @@ sequenceDiagram
 
 | Component | Layer | Intent | Req | Dependencies | Contracts |
 |-----------|-------|--------|-----|--------------|-----------|
-| SettingsRepository | Data | BPM/パターン/強度/呼吸テンポ/セッション時間の保存/取得 | 1.1-1.5,3.1 | expo-sqlite (P0) | Service, State |
+| SettingsRepository | Data | BPM/強度/呼吸テンポ/セッション時間の保存/取得 | 1.1-1.5,3.1 | expo-sqlite (P0) | Service, State |
 | SessionRepository | Data | セッション記録の保存/取得 | 4.1-4.6 | expo-sqlite (P0) | Service, State |
 | HapticsAdapter | Platform | 振動実行と停止、失敗理由の通知 | 1.3,2.2 | expo-haptics (P0) | Service |
 | GuidanceEngine | Domain | BPMベースのパルス生成・進行管理 | 2.1-2.4 | HapticsAdapter (P0) | Service |
@@ -99,17 +99,15 @@ sequenceDiagram
 ### SettingsRepository (Data)
 | Field | Detail |
 |-------|--------|
-| Intent | 振動BPM/パターン/強度/呼吸テンポ/セッション時間の保存と取得 |
+| Intent | 振動BPM/強度/呼吸テンポ/セッション時間の保存と取得 |
 | Requirements | 1.1,1.2,1.4,1.5,3.1 |
 | Contracts | Service, State |
 | Outbound | expo-sqlite (P0) |
 
 **Service Interface**
 ```ts
-type VibrationPattern = 'short'|'pulse'|'wave';
 interface SettingsValues {
   bpm: number; // 40-90
-  pattern: VibrationPattern;
   intensity: 'low'|'medium'|'strong';
   breathPreset: '4-6-4'|'5-5-5'|'4-4-4';
   useBreath: boolean;
@@ -150,7 +148,7 @@ interface HapticsAdapter {
 ```ts
 interface GuidanceConfig {
   bpm: number; // 40-90
-  pattern: number[]; // ms配列（0始点）
+  pattern: number[]; // ms配列（通常は [0] の単発）
   durationSec: number; // settings.durationSec を使用（初期値180）
   visualEnabled: boolean;
   breathPreset?: '4-6-4'|'5-5-5'|'4-4-4';
@@ -217,11 +215,11 @@ interface SessionUseCase {
 ## Data Models
 
 ### Domain Model
-- `GuidanceSettings`: bpm, pattern, intensity, durationSec, useBreath, breathPreset。
+- `GuidanceSettings`: bpm, intensity, durationSec, useBreath, breathPreset。
 - `SessionRecord`: id, startedAt, endedAt, bpm, patternId, guideType, preHr?, postHr?, comfort?, improvement?, useBreath, breathPreset?, notes?.
 
 ### Logical Data Model
-- テーブル: `settings`(id=1, bpm INT, pattern TEXT, intensity TEXT, durationSec INT, useBreath INT, breathPreset TEXT, updatedAt TEXT)
+- テーブル: `settings`(id=1, bpm INT, intensity TEXT, durationSec INT, useBreath INT, breathPreset TEXT, updatedAt TEXT)
 - テーブル: `session_records`(上記定義)
 - 一貫性: 単一設定行をupsert。セッション保存はトランザクションで1件単位。
 

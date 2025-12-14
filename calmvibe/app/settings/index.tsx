@@ -5,23 +5,16 @@ import { SqliteSettingsRepository } from '../../src/settings/sqliteRepository';
 import {
   SettingsRepository,
   SettingsValues,
-  VibrationPattern,
   VibrationIntensity,
   BreathPreset,
   defaultSettings,
 } from '../../src/settings/types';
 import { useSettingsViewModel } from './useSettingsViewModel';
-import { mapPatternToMs } from '../session/utils';
+import { singleBeatPattern } from '../session/utils';
 
 export type SettingsScreenProps = {
   repository?: SettingsRepository;
 };
-
-const patternOptions: { label: string; value: VibrationPattern; jp: string }[] = [
-  { label: 'シンプル', value: 'short', jp: 'シンプル' },
-  { label: 'パルス', value: 'pulse', jp: 'パルス' },
-  { label: 'ウェーブ', value: 'wave', jp: 'ウェーブ' },
-];
 
 const intensityOptions: { label: string; value: VibrationIntensity }[] = [
   { label: '弱', value: 'low' },
@@ -31,7 +24,6 @@ const intensityOptions: { label: string; value: VibrationIntensity }[] = [
 
 const breathOptions: BreathPreset[] = ['4-6-4', '5-5-5', '4-4-4'];
 
-const labelForPattern = (p: VibrationPattern) => patternOptions.find((o) => o.value === p)?.jp ?? 'パルス';
 const labelForIntensity = (i: VibrationIntensity) => intensityOptions.find((o) => o.value === i)?.label ?? '中';
 
 export default function SettingsScreen({ repository }: SettingsScreenProps) {
@@ -52,8 +44,8 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
 
   const runPreview = async () => {
     setPreviewing(true);
-    const pattern = mapPatternToMs(vm.values.pattern);
-    pattern.forEach((delay, idx) => {
+    const pattern = singleBeatPattern;
+    pattern.forEach((delay) => {
       setTimeout(() => {
         Haptics.impactAsync(
           vm.values.intensity === 'strong'
@@ -90,19 +82,7 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
         <Pressable onPress={() => changeDuration(-30)} style={styles.smallBtn}><Text style={styles.smallLabel}>-時間</Text></Pressable>
       </View>
 
-      <Text style={styles.sectionTitle}>バイブパターン</Text>
-      <View style={styles.optionRow}>
-        {patternOptions.map((opt) => (
-          <ChoiceButton
-            key={opt.value}
-            label={opt.jp}
-            selected={current.pattern === opt.value}
-            onPress={() => vm.setPattern(opt.value)}
-          />
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>バイブ強度</Text>
+      <Text style={styles.sectionTitle}>バイブ強度（1拍1振動）</Text>
       <View style={styles.optionRow}>
         {intensityOptions.map((opt) => (
           <ChoiceButton
@@ -133,7 +113,7 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
 
       <View style={styles.previewContainer}>
         <Animated.View style={[styles.circle, { transform: [{ scale }] }]} />
-        <Text style={styles.previewText}>{previewing ? 'プレビュー再生中' : '振動パターンを体感できます'}</Text>
+        <Text style={styles.previewText}>{previewing ? 'プレビュー再生中' : '1拍1振動で体感できます'}</Text>
         <View style={styles.buttonRow}>
           <ActionButton label="プレビュー" onPress={runPreview} />
           <ActionButton label={vm.saving ? '保存中...' : '保存'} onPress={onSave} disabled={vm.saving} />
@@ -143,7 +123,6 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
       <View style={styles.summaryBox}>
         <Text style={styles.summaryText}>現在のBPM: {current.bpm}</Text>
         <Text style={styles.summaryText}>現在の時間: {current.durationSec}秒</Text>
-        <Text style={styles.summaryText}>現在のパターン: {labelForPattern(current.pattern)}</Text>
         <Text style={styles.summaryText}>現在の強度: {labelForIntensity(current.intensity)}</Text>
         <Text style={styles.summaryText}>呼吸ガイド: {current.useBreath ? 'ON' : 'OFF'}</Text>
         <Text style={styles.summaryText}>呼吸プリセット: {current.breathPreset}</Text>

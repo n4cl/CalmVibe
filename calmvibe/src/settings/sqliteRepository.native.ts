@@ -8,7 +8,7 @@ type DB = any;
 const ensureTable = (db: DB) => {
   db.transaction((tx: any) => {
     tx.executeSql(
-      'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY NOT NULL, bpm INT, durationSec INT, pattern TEXT, intensity TEXT, useBreath INT, breathPreset TEXT, updatedAt TEXT)'
+      'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY NOT NULL, bpm INT, durationSec INT, intensity TEXT, useBreath INT, breathPreset TEXT, updatedAt TEXT)'
     );
   });
 };
@@ -17,7 +17,7 @@ const queryAll = (db: DB): Promise<SettingsValues | undefined> =>
   new Promise((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
-        'SELECT bpm, durationSec, pattern, intensity, useBreath, breathPreset FROM settings WHERE id = 1 LIMIT 1',
+        'SELECT bpm, durationSec, intensity, useBreath, breathPreset FROM settings WHERE id = 1 LIMIT 1',
         [],
         (_: any, result: any) => {
           const row = result.rows.item(0);
@@ -28,7 +28,6 @@ const queryAll = (db: DB): Promise<SettingsValues | undefined> =>
           resolve({
             bpm: row.bpm,
             durationSec: row.durationSec,
-            pattern: row.pattern,
             intensity: row.intensity,
             useBreath: row.useBreath === 1,
             breathPreset: row.breathPreset,
@@ -46,15 +45,8 @@ const upsert = (db: DB, values: SettingsValues): Promise<void> =>
   new Promise((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
-        'INSERT INTO settings (id, bpm, durationSec, pattern, intensity, useBreath, breathPreset, updatedAt) VALUES (1, ?, ?, ?, ?, ?, ?, datetime("now")) ON CONFLICT(id) DO UPDATE SET bpm=excluded.bpm, durationSec=excluded.durationSec, pattern=excluded.pattern, intensity=excluded.intensity, useBreath=excluded.useBreath, breathPreset=excluded.breathPreset, updatedAt=datetime("now")',
-        [
-          values.bpm,
-          values.durationSec,
-          values.pattern,
-          values.intensity,
-          values.useBreath ? 1 : 0,
-          values.breathPreset,
-        ],
+        'INSERT INTO settings (id, bpm, durationSec, intensity, useBreath, breathPreset, updatedAt) VALUES (1, ?, ?, ?, ?, ?, datetime("now")) ON CONFLICT(id) DO UPDATE SET bpm=excluded.bpm, durationSec=excluded.durationSec, intensity=excluded.intensity, useBreath=excluded.useBreath, breathPreset=excluded.breathPreset, updatedAt=datetime("now")',
+        [values.bpm, values.durationSec, values.intensity, values.useBreath ? 1 : 0, values.breathPreset],
         () => resolve(),
         (_: any, error: any) => {
           reject(error);

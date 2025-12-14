@@ -3,7 +3,7 @@ export type GuidanceMode = 'BREATH' | 'VIBRATION' | 'BOTH';
 export type GuidanceConfig = {
   bpm: number; // 40-90
   durationSec: number;
-  vibrationPattern: number[]; // ms 単位
+  vibrationPattern: number[]; // ms 単位（1拍内での複数振動、通常は単発[0]）
   visualEnabled: boolean;
   breathPreset?: '4-6-4' | '5-5-5' | '4-4-4';
 };

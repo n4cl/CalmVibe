@@ -30,7 +30,6 @@ describe('SettingsScreen', () => {
     await waitFor(() => expect(repo.get).toHaveBeenCalled());
     expect(getByText('現在のBPM: 60')).toBeTruthy();
     expect(getByText('現在の時間: 180秒')).toBeTruthy();
-    expect(getByText('現在のパターン: パルス')).toBeTruthy();
     expect(getByText('現在の強度: 中')).toBeTruthy();
     expect(getByText('呼吸ガイド: ON')).toBeTruthy();
     expect(getByText('呼吸プリセット: 4-6-4')).toBeTruthy();
@@ -44,7 +43,6 @@ describe('SettingsScreen', () => {
 
     fireEvent.press(getByText('+BPM'));
     fireEvent.press(getByText('+時間'));
-    fireEvent.press(getByText('ウェーブ'));
     fireEvent.press(getByText('強')); // intensity strong
     fireEvent.press(getByText('呼吸ON')); // toggle off
     fireEvent.press(getByText('5-5-5'));
@@ -54,24 +52,23 @@ describe('SettingsScreen', () => {
       expect(repo.save).toHaveBeenCalledWith({
         bpm: 61,
         durationSec: 210,
-        pattern: 'wave',
         intensity: 'strong',
         useBreath: false,
         breathPreset: '5-5-5',
+        pattern: 'pulse',
       })
     );
   });
 
-  it('プレビューでパターンに応じた複数振動が再生される', async () => {
+  it('プレビューで単発振動が再生される', async () => {
     const repo = mockRepo();
     const { getByText } = render(<SettingsScreen repository={repo} />);
 
     await waitFor(() => expect(repo.get).toHaveBeenCalled());
 
-    fireEvent.press(getByText('ウェーブ'));
     fireEvent.press(getByText('プレビュー'));
 
     const { impactAsync } = require('expo-haptics');
-    await waitFor(() => expect(impactAsync).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(impactAsync).toHaveBeenCalledTimes(1));
   });
 });
