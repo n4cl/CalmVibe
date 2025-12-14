@@ -53,7 +53,7 @@ sequenceDiagram
 
   User->>UI: 開始タップ
   UI->>VM: start()
-  VM->>UC: beginSession(config from settings section on the same screen)
+  VM->>UC: beginSession(config from settings section on the same screen, default mode=BOTH)
   UC->>GE: startGuidance(BPM, pattern)
   GE->>HA: playPattern(loop)
   GE-->>VM: onStep(cycle, elapsed)
@@ -189,9 +189,9 @@ interface SessionUseCase {
   complete(input: CompleteInput): Promise<void>;
 }
 ```
-- Behavior: startでSettingsを取得しGuidanceEngineを起動。mode=BOTHなら視覚ON＋振動、BREATHなら視覚のみ・振動OFF、VIBRATIONなら振動のみ。durationSecは設定値（初期値180秒）を使用し、ユーザー操作でいつでも停止可能。呼吸ガイドは機能として常に利用可能で、モード選択で使わないことを選べるだけ。
+- Behavior: startでSettingsを取得しGuidanceEngineを起動。デフォルトmodeは BOTH（振動＋視覚）。BREATHなら視覚のみ・振動OFF、VIBRATIONなら振動のみ。durationSecは設定値（初期値180秒）を使用し、ユーザー操作でいつでも停止可能。呼吸ガイドは機能として常に利用可能で、モード選択で使わないことを選べるだけ。
 - Stop条件: durationSec経過またはユーザー手動停止の早い方。停止時はGuidanceEngine.stop()を呼び、状態を終了に更新。
-- On complete: SessionRepositoryへ記録を保存。
+- On complete: guideTypeを含む記録（preHr/postHr/comfort/improvement/breathPreset）をSessionRepositoryへ保存。
 
 ### SessionRepository (Data)
 | Field | Detail |
