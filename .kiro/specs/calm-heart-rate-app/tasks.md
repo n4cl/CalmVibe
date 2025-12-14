@@ -16,7 +16,7 @@
   - moduleSuffixesを設定して環境別の解決を自動化し、開発中に誤って`w`を押してもクラッシュしないようにする。
   - _Requirements: なし（開発環境安定化）_
 
-- [ ] 4. GuidanceEngineとHapticsAdapterの実装 (P)
+- [x] 4. GuidanceEngineとHapticsAdapterの実装 (P)
   - GuidanceConfigに基づき呼吸テンポのステップタイマーを実装し、振動パターン生成と開始/停止を行う。
   - expo-haptics経由で振動を実行し、権限/設定エラーをResultで返却する。
   - 単一アクティブセッションの不変条件を維持し、進捗イベントをUI層に通知できる形にする。
