@@ -65,6 +65,31 @@ sequenceDiagram
   end
 ```
 
+### セッション終了〜記録保存フロー
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI as SessionScreen
+  participant VM as SessionVM
+  participant UC as SessionUseCase
+  participant SR as SessionRepository
+
+  User->>UI: 手動停止 or duration/cycles完了
+  UI->>VM: onStop()
+  VM->>UC: stop() // Guidance停止と状態確定
+  VM-->>UI: 終了記録モーダル表示
+  User->>UI: 終了情報入力 (guideType, preHr?, postHr?, comfort?, improvement?, breathPreset?, bpm?)
+  UI->>VM: submitCompletion(data)
+  VM->>UC: complete(data)
+  UC->>SR: 保存 (session_records)
+  SR-->>UC: 保存結果 (ok/error)
+  alt 保存成功
+    VM-->>UI: 完了トースト/遷移
+  else 保存失敗
+    VM-->>UI: エラートースト + リトライ選択
+  end
+```
+
 ## Requirements Traceability
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
@@ -232,6 +257,25 @@ interface SessionUseCase {
 - テーブル: `settings`(id=1, bpm INT, durationSec INT, intensity TEXT, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
 - テーブル: `session_records`(上記定義)
 - 一貫性: `breathCycles` がNULLの場合は∞を表す。`holdSec`はthree-phaseのみ使用。
+- マイグレーション方針: 既存データ移行は行わず、初回起動時にテーブルを新規作成（既存が不整合ならリセットしてデフォルト値を再挿入）。
+
+## Validation & Error Handling
+
+- 入力バリデーション
+  - BPM: 40〜90、整数
+  - durationSec: 60〜300、整数
+  - heart rate (pre/post): 30〜220、整数、未入力可
+  - intensity: `low|medium|strong`
+  - comfort / improvement: 1〜5 段階、未入力可
+  - breath cycles: 正数 or NULL(∞)
+- 完了入力の扱い
+  - 必須: guideType（振動/呼吸）、終了理由（時間満了/手動停止）
+  - 任意: preHr, postHr, comfort, improvement, breathPreset, bpm
+- エラー処理
+  - Guidance/Haptics失敗: 視覚ガイドのみ継続し警告トーストを表示、ログ残す。
+  - DB保存失敗: 1回リトライ。失敗時はユーザーに「記録保存に失敗」トーストと再試行ボタンを提示。
+  - 入力エラー: UI側でバリデーション表示し送信をブロック（例: 範囲外値は赤枠＋メッセージ）。
+  - 非Webプラットフォーム依存: Webでは振動をスキップしエラーにしない。
 
 ## Error Handling
 - 振動不可（permission/disabled）: GuidanceEngineがエラーを返し、UIは視覚ガイドのみ継続＋警告表示。
