@@ -1,11 +1,11 @@
 # Design Document
 
 ## Overview
-本機能は不安や動揺で鼓動が高まったときに、ユーザーが指定したBPMリズムで振動ガイドを即時開始し、身体をリズムに同期させて落ち着きを取り戻すことを主目的とする。視覚ガイド（円の鼓動アニメ）は任意で振動と同期表示し、呼吸テンポプリセットは補助として選択できる。心拍は手入力のみで記録し、履歴を端末ローカルに保存・参照する。
+本機能は不安や動揺で鼓動が高まったときに、ユーザーが指定したBPMリズムで「1拍1振動」を即時開始し、呼吸ペースを整えて落ち着きを取り戻すことを主目的とする。視覚ガイド（円の鼓動アニメ）と呼吸テンポプリセットは振動とは独立した補助機能として扱い、画面を見られない状況でも振動だけで吸気/呼気切り替えが分かる。心拍は手入力のみで記録し、履歴を端末ローカルに保存・参照する。
 
 ### Goals
-- 振動リズム（BPM）を設定・保存し、±5%以内の間隔で継続振動を提供する。
-- ワンタップで振動ガイドを開始/停止し、任意で視覚ガイドを同期表示する。
+- 振動リズム（BPM）を設定・保存し、±5%以内の間隔で「1拍1振動」を提供する。
+- ワンタップで呼吸ペースガイドを開始/停止し、視覚ガイドと振動の両方またはいずれかでフェーズ提示できる。
 - セッション前後の心拍・主観評価・ガイド種別をローカルに記録・閲覧できる。
 
 ### Non-Goals
@@ -41,7 +41,7 @@ graph TB
 
 ## System Flows
 
-### セッション開始〜停止（振動ガイド優先）
+### セッション開始〜停止（呼吸ペースガイド）
 ```mermaid
 sequenceDiagram
   participant User
@@ -53,7 +53,7 @@ sequenceDiagram
 
   User->>UI: 開始タップ
   UI->>VM: start()
-  VM->>UC: beginSession(config from settings)
+  VM->>UC: beginSession(config from settings section on the same screen)
   UC->>GE: startGuidance(BPM, pattern)
   GE->>HA: playPattern(loop)
   GE-->>VM: onStep(cycle, elapsed)
@@ -68,17 +68,17 @@ sequenceDiagram
 ## Requirements Traceability
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
-| 1.1 | BPM入力/スライダー保存 | SettingsScreen, SettingsVM, SettingsRepo | SettingsRepository | - |
-| 1.2 | 強度保存 | SettingsScreen, SettingsVM, SettingsRepo | SettingsRepository | - |
-| 1.3 | プレビューで単発振動を確認 | SettingsScreen, HapticsAdapter | HapticsAdapter | - |
-| 1.4 | 次回自動適用 | SettingsVM | SettingsRepository | - |
-| 1.5 | セッション時間設定 | SettingsScreen, SettingsVM, SettingsRepo | SettingsRepository | - |
-| 2.1 | 即時開始（振動優先、視覚切替） | SessionScreen/VM, SessionUseCase | SessionUseCase | セッション開始 |
-| 2.2 | BPM±5%で継続振動 | GuidanceEngine, HapticsAdapter | GuidanceEngine.startGuidance | セッション進行 |
-| 2.3 | 視覚ガイド同期・任意OFF | BreathVisualGuide, SessionVM | - | セッション進行 |
+| 1.1 | BPM入力/スライダー保存（セッション画面内設定） | SessionScreen/VM | SettingsRepository | - |
+| 1.2 | 強度保存（セッション画面内設定） | SessionScreen/VM | SettingsRepository | - |
+| 1.3 | プレビューで単発振動を確認 | SessionScreen/VM | HapticsAdapter | - |
+| 1.4 | 次回自動適用 | SessionVM | SettingsRepository | - |
+| 1.5 | セッション時間設定＋手動停止 | SessionScreen/VM | SettingsRepository | - |
+| 2.1 | 呼吸ペース即時開始（デフォルト振動＋視覚、モード選択可） | SessionScreen/VM, SessionUseCase | SessionUseCase | セッション開始 |
+| 2.2 | BPM±5%で単発振動（吸気/呼気の切替キュー） | GuidanceEngine, HapticsAdapter | GuidanceEngine.startGuidance | セッション進行 |
+| 2.3 | 視覚ガイド同期・任意OFF（画面を見なくても振動で続行） | BreathVisualGuide, SessionVM | - | セッション進行 |
 | 2.4 | 確実停止と終了表示（時間/手動） | SessionUseCase, GuidanceEngine | GuidanceEngine.stopGuidance | セッション完了 |
-| 3.1 | 呼吸テンポ保存 | SettingsScreen, SettingsRepo | SettingsRepository | - |
-| 3.2 | 呼吸有効時の同期提示 | SessionUseCase, GuidanceEngine | SessionUseCase | セッション開始 |
+| 3.1 | 呼吸プリセット保存（セッション画面内設定） | SessionScreen/VM | SettingsRepository | - |
+| 3.2 | 呼吸のみ/併用の開始 | SessionUseCase, GuidanceEngine | SessionUseCase | セッション開始 |
 | 3.3 | 呼吸OFFで振動のみ | SessionUseCase | SessionUseCase | セッション開始 |
 | 4.1-4.6 | 記録・履歴表示 | SessionUseCase, SessionRepo, LogsScreen/VM | SessionRepository | 記録保存/閲覧 |
 
@@ -86,14 +86,13 @@ sequenceDiagram
 
 | Component | Layer | Intent | Req | Dependencies | Contracts |
 |-----------|-------|--------|-----|--------------|-----------|
-| SettingsRepository | Data | BPM/強度/呼吸テンポ/セッション時間の保存/取得 | 1.1-1.5,3.1 | expo-sqlite (P0) | Service, State |
+| SettingsRepository | Data | BPM/強度/呼吸テンポ/セッション時間の保存/取得（セッション画面内設定セクションで使用） | 1.1-1.5,3.1 | expo-sqlite (P0) | Service, State |
 | SessionRepository | Data | セッション記録の保存/取得 | 4.1-4.6 | expo-sqlite (P0) | Service, State |
 | HapticsAdapter | Platform | 振動実行と停止、失敗理由の通知 | 1.3,2.2 | expo-haptics (P0) | Service |
 | GuidanceEngine | Domain | BPMベースのパルス生成・進行管理 | 2.1-2.4 | HapticsAdapter (P0) | Service |
 | SessionUseCase | Domain | 開始/停止オーケストレーション、ガイド選択 | 2.1-2.4,3.2,3.3,4.1-4.3 | GuidanceEngine, SessionRepository, SettingsRepository (P0) | Service |
-| SessionViewModel | Presentation | UI状態管理（開始/停止/進行表示） | 2.1-2.4 | SessionUseCase (P0) | State |
+| SessionViewModel | Presentation | セッション画面内で設定CRUD/プレビュー＋開始/停止/進行表示 | 1.1-1.5,2.1-2.4,3.1-3.3 | SettingsRepository, HapticsAdapter, SessionUseCase (P0) | State |
 | BreathVisualGuide | Presentation | 振動/呼吸周期に同期した円アニメ | 2.3,3.2 | SessionViewModel (P1) | State |
-| SettingsViewModel | Presentation | 設定CRUDとプレビュー | 1.1-1.4,3.1 | SettingsRepository, HapticsAdapter (P0) | State |
 | LogsViewModel | Presentation | 履歴一覧/詳細取得 | 4.6 | SessionRepository (P0) | State |
 
 ### SettingsRepository (Data)
@@ -107,11 +106,10 @@ sequenceDiagram
 **Service Interface**
 ```ts
 interface SettingsValues {
-  bpm: number; // 40-90
+  bpm: number; // 40-90 （セッション画面内で編集・保存するデフォルト値）
+  durationSec: number; // 60-300, 手動停止は常に可（同上）
   intensity: 'low'|'medium'|'strong';
   breathPreset: '4-6-4'|'5-5-5'|'4-4-4';
-  useBreath: boolean;
-  durationSec: number; // 60-300
 }
 interface SettingsRepository {
   get(): Promise<SettingsValues>;
@@ -134,13 +132,13 @@ interface HapticsAdapter {
   stop(): Promise<HapticsResult>;
 }
 ```
-- Validation: pattern長とamplitudes長一致、空配列不可。
+- Validation: pattern長とamplitudes長一致。呼吸のみモードでは空配列を許容し、その場合は振動を送出しない。
 - Fallback: 失敗時はエラーを返し、上位で視覚のみ継続。
 
 ### GuidanceEngine (Domain)
 | Field | Detail |
 |-------|--------|
-| Intent | BPM間隔で振動を継続し、視覚同期用ステップを通知 |
+| Intent | BPM間隔で単発振動を継続し、視覚同期用ステップを通知 |
 | Requirements | 2.1,2.2,2.3,2.4 |
 | Contracts | Service |
 
@@ -148,7 +146,7 @@ interface HapticsAdapter {
 ```ts
 interface GuidanceConfig {
   bpm: number; // 40-90
-  pattern: number[]; // ms配列（通常は [0] の単発）
+  pattern: number[]; // ms配列（通常は [0] の単発。呼吸のみモードでは空配列）
   durationSec: number; // settings.durationSec を使用（初期値180）
   visualEnabled: boolean;
   breathPreset?: '4-6-4'|'5-5-5'|'4-4-4';
@@ -171,7 +169,7 @@ interface GuidanceEngine {
 ### SessionUseCase (Domain)
 | Field | Detail |
 |-------|--------|
-| Intent | 設定読込→Guidance開始/停止、終了時の記録保存 |
+| Intent | 設定読込→Guidance開始/停止、終了時の記録保存（振動と呼吸をモードで切替/併用） |
 | Requirements | 2.1-2.4,3.2,3.3,4.1-4.3 |
 | Contracts | Service |
 
@@ -191,7 +189,7 @@ interface SessionUseCase {
   complete(input: CompleteInput): Promise<void>;
 }
 ```
-- Behavior: startでSettingsを取得しGuidanceEngineを起動。mode=BOTHなら視覚ON＋振動、BREATHなら視覚のみ・振動OFF。durationSecは設定値（初期値180秒）を使用。
+- Behavior: startでSettingsを取得しGuidanceEngineを起動。mode=BOTHなら視覚ON＋振動、BREATHなら視覚のみ・振動OFF、VIBRATIONなら振動のみ。durationSecは設定値（初期値180秒）を使用し、ユーザー操作でいつでも停止可能。呼吸ガイドは機能として常に利用可能で、モード選択で使わないことを選べるだけ。
 - Stop条件: durationSec経過またはユーザー手動停止の早い方。停止時はGuidanceEngine.stop()を呼び、状態を終了に更新。
 - On complete: SessionRepositoryへ記録を保存。
 
@@ -203,23 +201,22 @@ interface SessionUseCase {
 | Contracts | Service, State |
 
 **Data Model (Logical / SQLite)**
-- `session_records`(id PK, startedAt, endedAt, bpm INT, pattern TEXT, guideType TEXT, preHr INT?, postHr INT?, comfort INT?, improvement INT?, useBreath INT, breathPreset TEXT?, notes TEXT?)
+- `session_records`(id PK, startedAt, endedAt, bpm INT, guideType TEXT, preHr INT?, postHr INT?, comfort INT?, improvement INT?, breathPreset TEXT?, notes TEXT?)
 - Index: startedAt DESC
 
 ### ViewModels / UI
-- **SettingsViewModel/Screen**: BPMスライダー、パターン・強度選択、呼吸ON/OFF、プリセット選択、プレビューでHapticsAdapterをパターン反映（Req 1.1-1.3,3.1）。
-- **SessionViewModel/Screen**: モード選択（振動/呼吸/併用）、開始/停止、状態表示、視覚ガイド切替（Req 2.1-2.4,3.2,3.3）。
+- **SessionViewModel/Screen**: セッション画面内で設定変更（BPM/時間/強度/呼吸プリセット）とプレビュー、モード選択（振動/呼吸/併用）、開始/停止、状態表示、視覚ガイド切替（Req 1.1-1.5,2.1-2.4,3.1-3.3）。
 - **BreathVisualGuide**: 振動/呼吸周期に同期した円アニメ（Req 2.3）。
 - **LogsViewModel/Screens**: 履歴一覧/詳細（Req 4.1-4.6）。
 
 ## Data Models
 
 ### Domain Model
-- `GuidanceSettings`: bpm, intensity, durationSec, useBreath, breathPreset。
-- `SessionRecord`: id, startedAt, endedAt, bpm, patternId, guideType, preHr?, postHr?, comfort?, improvement?, useBreath, breathPreset?, notes?.
+- `GuidanceSettings`: bpm, intensity, durationSec, breathPreset。
+- `SessionRecord`: id, startedAt, endedAt, bpm, guideType, preHr?, postHr?, comfort?, improvement?, breathPreset?, notes?.
 
 ### Logical Data Model
-- テーブル: `settings`(id=1, bpm INT, intensity TEXT, durationSec INT, useBreath INT, breathPreset TEXT, updatedAt TEXT)
+- テーブル: `settings`(id=1, bpm INT, intensity TEXT, durationSec INT, breathPreset TEXT, updatedAt TEXT)
 - テーブル: `session_records`(上記定義)
 - 一貫性: 単一設定行をupsert。セッション保存はトランザクションで1件単位。
 
@@ -231,7 +228,7 @@ interface SessionUseCase {
 ## Testing Strategy
 - Unit: GuidanceEngineのBPM間隔補正と停止、HapticsAdapterの入力検証、SettingsRepository upsert、SessionUseCase開始/停止/記録保存。
 - Integration: 設定保存→セッション開始（振動のみ/呼吸のみ/併用）→停止→記録保存→履歴表示。
-- UI: Settingsプレビューでパターン反映、Session開始/停止の状態遷移、履歴一覧表示。
+- UI: Settingsプレビューで単発振動、Session開始/停止の状態遷移、履歴一覧表示。
 
 ## Performance & Scalability
 - タイマー精度: ±5%以内を目標。セッション長は数分以内を推奨し、UIで上限を設定。

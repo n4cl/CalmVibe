@@ -1,13 +1,13 @@
 # Implementation Plan
 
 - [x] 1. 設定データモデルとリポジトリ更新 (P)
-  - SettingsRepository/DAOをBPM(40-90), durationSec(60-300), pattern, intensity, useBreath, breathPresetに対応させ、既存SQLiteテーブルをマイグレーション。
+  - SettingsRepository/DAOをBPM(40-90), durationSec(60-300), intensity, breathPresetに対応させ、既存SQLiteテーブルをマイグレーション。
   - 取得/保存の型を設計どおりに揃え、デフォルト値（例: bpm=60, duration=180）を定義。
   - _Requirements: 1.1,1.2,1.4,1.5,3.1_
 
-- [x] 2. 設定画面とプレビュー強化 (P)
-  - BPMスライダー/入力、セッション時間設定、パターン・強度選択、呼吸ON/OFFとプリセット選択をUIに実装し、保存・復元を反映。
-  - プレビューで選択パターンに応じた複数振動を再生し視覚アニメも強調（Webは無振動フォールバックで落ちないこと）。
+- [x] 2. 設定UIとプレビュー（セッション画面内） (P)
+  - セッション画面内の設定セクションにBPMスライダー/入力、セッション時間設定、強度選択、呼吸プリセット選択を実装し、保存・復元を反映。
+  - プレビューで単発振動を再生し視覚アニメも強調（Webは無振動フォールバックで落ちないこと）。
   - _Requirements: 1.1,1.2,1.3,1.5,3.1_
 
 - [x] 3. GuidanceEngineのBPM進行と誤差補正
@@ -21,7 +21,7 @@
   - _Requirements: 2.1,2.2,2.3,2.4,3.2,3.3_
 
 - [ ] 5. セッション記録保存
-  - SessionUseCaseで preHr/postHr、guideType（VIBRATION/BREATH/BOTH）、comfort、improvement、breathPreset/useBreath を収集しSessionRepositoryへ保存。
+  - SessionUseCaseで preHr/postHr、guideType（VIBRATION/BREATH/BOTH）、comfort、improvement、breathPreset を収集しSessionRepositoryへ保存。
   - _Requirements: 4.1,4.2,4.3,4.4,4.5_
 
 - [ ] 6. 履歴一覧・詳細表示
@@ -33,6 +33,6 @@
   - _Requirements: 2.2,2.3,4.1,4.2,4.3_
 
 - [ ] 8. テスト
-  - Unit: GuidanceEngineのBPM補正・停止、HapticsAdapter入力検証、SettingsRepositoryのduration/BPM/pattern保存、SessionUseCaseの記録保存。
+  - Unit: GuidanceEngineのBPM補正・停止、HapticsAdapter入力検証、SettingsRepositoryのduration/BPM保存、SessionUseCaseの記録保存。
   - Integration: 設定保存→モード別開始（振動/呼吸/併用）→時間/手動停止→記録保存→履歴表示、振動不可時の視覚継続フォールバック、Webプレビュー無振動動作。
   - _Requirements: 1.1,1.2,1.3,1.5,2.1,2.2,2.3,2.4,4.1,4.6_
