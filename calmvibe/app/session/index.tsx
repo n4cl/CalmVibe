@@ -8,7 +8,7 @@ import { GuidanceEngine, GuidanceMode } from '../../src/guidance/types';
 import { useSessionViewModel } from './useSessionViewModel';
 import { BreathVisualGuide } from './visualGuide';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useSettingsViewModel } from '../settings/useSettingsViewModel';
+import { useSettingsViewModel } from '../../src/settings/useSettingsViewModel';
 import { singleBeatPattern } from './utils';
 
 export type SessionScreenProps = {

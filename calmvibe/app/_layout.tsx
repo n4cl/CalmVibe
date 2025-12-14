@@ -11,15 +11,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <Tabs screenOptions={{ headerShown: false }}>
         <Tabs.Screen
-          name="settings"
-          options={{
-            title: '設定',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="settings-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="session"
           options={{
             title: 'セッション',
