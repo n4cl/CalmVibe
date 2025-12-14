@@ -37,9 +37,7 @@ class MockGuidanceEngine implements GuidanceEngine {
 const settings: SettingsValues = {
   bpm: 60,
   durationSec: 180,
-  pattern: 'pulse',
   intensity: 'medium',
-  useBreath: false,
   breathPreset: '4-6-4',
 };
 

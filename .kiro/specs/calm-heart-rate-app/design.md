@@ -5,7 +5,7 @@
 
 ### Goals
 - 振動リズム（BPM）を設定・保存し、±5%以内の間隔で「1拍1振動」を提供する。
-- ワンタップで呼吸ペースガイドを開始/停止し、視覚ガイドと振動の両方またはいずれかでフェーズ提示できる。
+- ワンタップで呼吸ペースガイドを開始/停止し、振動モードまたは呼吸ガイド（視覚）モードのいずれかでフェーズ提示できる。
 - セッション前後の心拍・主観評価・ガイド種別をローカルに記録・閲覧できる。
 
 ### Non-Goals
@@ -53,7 +53,7 @@ sequenceDiagram
 
   User->>UI: 開始タップ
   UI->>VM: start()
-  VM->>UC: beginSession(config from settings section on the same screen, default mode=BOTH)
+  VM->>UC: beginSession(config from settings section on the same screen, default mode=VIBRATION)
   UC->>GE: startGuidance(BPM, pattern)
   GE->>HA: playPattern(loop)
   GE-->>VM: onStep(cycle, elapsed)
@@ -73,13 +73,13 @@ sequenceDiagram
 | 1.3 | プレビューで単発振動を確認 | SessionScreen/VM | HapticsAdapter | - |
 | 1.4 | 次回自動適用 | SessionVM | SettingsRepository | - |
 | 1.5 | セッション時間設定＋手動停止 | SessionScreen/VM | SettingsRepository | - |
-| 2.1 | 呼吸ペース即時開始（デフォルト振動＋視覚、モード選択可） | SessionScreen/VM, SessionUseCase | SessionUseCase | セッション開始 |
+| 2.1 | 呼吸ペース即時開始（デフォルト振動、呼吸モードに切替可） | SessionScreen/VM, SessionUseCase | SessionUseCase | セッション開始 |
 | 2.2 | BPM±5%で単発振動（吸気/呼気の切替キュー） | GuidanceEngine, HapticsAdapter | GuidanceEngine.startGuidance | セッション進行 |
 | 2.3 | 視覚ガイド同期・任意OFF（画面を見なくても振動で続行） | BreathVisualGuide, SessionVM | - | セッション進行 |
 | 2.4 | 確実停止と終了表示（時間/手動） | SessionUseCase, GuidanceEngine | GuidanceEngine.stopGuidance | セッション完了 |
 | 3.1 | 呼吸プリセット保存（セッション画面内設定） | SessionScreen/VM | SettingsRepository | - |
-| 3.2 | 呼吸のみ/併用の開始 | SessionUseCase, GuidanceEngine | SessionUseCase | セッション開始 |
-| 3.3 | 呼吸OFFで振動のみ | SessionUseCase | SessionUseCase | セッション開始 |
+| 3.2 | 呼吸のみの開始 | SessionUseCase, GuidanceEngine | SessionUseCase | セッション開始 |
+| 3.3 | 振動のみの開始 | SessionUseCase | SessionUseCase | セッション開始 |
 | 4.1-4.6 | 記録・履歴表示 | SessionUseCase, SessionRepo, LogsScreen/VM | SessionRepository | 記録保存/閲覧 |
 
 ## Components & Interfaces
@@ -169,17 +169,17 @@ interface GuidanceEngine {
 ### SessionUseCase (Domain)
 | Field | Detail |
 |-------|--------|
-| Intent | 設定読込→Guidance開始/停止、終了時の記録保存（振動と呼吸をモードで切替/併用） |
+| Intent | 設定読込→Guidance開始/停止、終了時の記録保存（振動と呼吸をモードで切替） |
 | Requirements | 2.1-2.4,3.2,3.3,4.1-4.3 |
 | Contracts | Service |
 
 **Service Interface**
 ```ts
-interface StartInput { mode: 'VIBRATION'|'BREATH'|'BOTH'; }
+interface StartInput { mode: 'VIBRATION'|'BREATH'; }
 interface CompleteInput {
   preHr?: number;
   postHr?: number;
-  guideType: 'VIBRATION'|'BREATH'|'BOTH';
+  guideType: 'VIBRATION'|'BREATH';
   comfort?: number;
   improvement?: number;
 }
@@ -189,7 +189,7 @@ interface SessionUseCase {
   complete(input: CompleteInput): Promise<void>;
 }
 ```
-- Behavior: startでSettingsを取得しGuidanceEngineを起動。デフォルトmodeは BOTH（振動＋視覚）。BREATHなら視覚のみ・振動OFF、VIBRATIONなら振動のみ。durationSecは設定値（初期値180秒）を使用し、ユーザー操作でいつでも停止可能。呼吸ガイドは機能として常に利用可能で、モード選択で使わないことを選べるだけ。
+- Behavior: startでSettingsを取得しGuidanceEngineを起動。デフォルトmodeは VIBRATION。BREATHなら視覚のみ・振動OFF。durationSecは設定値（初期値180秒）を使用し、ユーザー操作でいつでも停止可能。呼吸ガイドは機能として常に利用可能で、モード選択で使わないことを選べるだけ。
 - Stop条件: durationSec経過またはユーザー手動停止の早い方。停止時はGuidanceEngine.stop()を呼び、状態を終了に更新。
 - On complete: guideTypeを含む記録（preHr/postHr/comfort/improvement/breathPreset）をSessionRepositoryへ保存。
 
@@ -205,7 +205,7 @@ interface SessionUseCase {
 - Index: startedAt DESC
 
 ### ViewModels / UI
-- **SessionViewModel/Screen**: セッション画面内で設定変更（BPM/時間/強度/呼吸プリセット）とプレビュー、モード選択（振動/呼吸/併用）、開始/停止、状態表示、視覚ガイド切替（Req 1.1-1.5,2.1-2.4,3.1-3.3）。
+- **SessionViewModel/Screen**: セッション画面内で設定変更（BPM/時間/強度/呼吸プリセット）とプレビュー、モード選択（振動/呼吸）、開始/停止、状態表示、視覚ガイド切替（Req 1.1-1.5,2.1-2.4,3.1-3.3）。
 - **BreathVisualGuide**: 振動/呼吸周期に同期した円アニメ（Req 2.3）。
 - **LogsViewModel/Screens**: 履歴一覧/詳細（Req 4.1-4.6）。
 

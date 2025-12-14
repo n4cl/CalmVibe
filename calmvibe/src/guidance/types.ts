@@ -1,4 +1,4 @@
-export type GuidanceMode = 'BREATH' | 'VIBRATION' | 'BOTH';
+export type GuidanceMode = 'BREATH' | 'VIBRATION';
 
 export type GuidanceConfig = {
   bpm: number; // 40-90

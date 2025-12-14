@@ -87,7 +87,7 @@ export default function SessionScreen({ guidanceEngine, settingsRepo }: SessionS
       <Text style={styles.body}>ここから鎮静セッションを開始・終了します。</Text>
 
       <Text style={styles.sectionTitle}>設定（セッション内で完結）</Text>
-      <View style={styles.settingsCard}>
+      <View style={[styles.settingsCard, vm.running && styles.settingsCardLocked]}>
         <View style={styles.row}>
           <Text style={styles.label}>BPM: {settingsVm.values.bpm}</Text>
           <Pressable onPress={() => changeBpm(+1)} style={styles.smallBtn}>
@@ -173,13 +173,18 @@ export default function SessionScreen({ guidanceEngine, settingsRepo }: SessionS
           <Text style={styles.summaryText}>現在の強度: {labelForIntensity(settingsVm.values.intensity)}</Text>
           <Text style={styles.summaryText}>呼吸プリセット: {settingsVm.values.breathPreset}</Text>
         </View>
+
+        {vm.running && (
+          <View style={styles.lockOverlay} pointerEvents="none">
+            <Text style={styles.lockText}>セッション中は設定を変更できません</Text>
+          </View>
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>ガイドモード</Text>
       <View style={styles.chipRow}>
         {modeButton('VIBRATION', '振動のみ')}
         {modeButton('BREATH', '呼吸のみ')}
-        {modeButton('BOTH', '併用')}
       </View>
 
       <View style={styles.guideBox}>
@@ -228,7 +233,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f5fb',
     gap: 8,
     marginBottom: 4,
+    position: 'relative',
   },
+  settingsCardLocked: { opacity: 0.6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { fontSize: 14, color: '#333' },
   previewContainer: {
@@ -267,6 +274,15 @@ const styles = StyleSheet.create({
     borderColor: '#2563eb',
   },
   smallLabel: { color: '#1746b4', fontWeight: '700', fontSize: 12 },
+  lockOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockText: { color: '#1746b4', fontWeight: '700' },
   guideBox: {
     marginTop: 8,
     padding: 16,
