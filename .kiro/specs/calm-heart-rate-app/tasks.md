@@ -15,7 +15,7 @@
   - durationSecで時間停止を管理し、visualEnabledフラグで視覚同期通知を制御。HapticsAdapterのエラーをResultで返却。
   - _Requirements: 2.1,2.2,2.3,2.4_
 
-- [ ] 4. セッション画面とモード選択連携
+- [x] 4. セッション画面とモード選択連携
   - SessionViewModel/Screenでモード（振動/呼吸/併用）選択、開始/停止、状態表示、keep-awakeを実装。visualガイドは任意で同期表示。
   - durationSec経過または手動停止の早い方で確実に停止し、完了メッセージを表示。
   - _Requirements: 2.1,2.2,2.3,2.4,3.2,3.3_

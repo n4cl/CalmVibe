@@ -27,8 +27,12 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
     this.startAt = Date.now();
     this.intervalMs = Math.max(1, Math.round(60000 / config.bpm));
 
-    // 最初のトリガー
-    await this.adapter.playPattern(config.vibrationPattern ?? [0]);
+    const pattern = config.vibrationPattern ?? [];
+
+    // 最初のトリガー（パターンが空なら振動せずステップのみ通知）
+    if (pattern.length > 0) {
+      await this.adapter.playPattern(pattern);
+    }
     this.listener?.onStep?.({ elapsedSec: 0, cycle: 0 });
 
     this.endTimeout = setTimeout(() => {
@@ -42,7 +46,9 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
       const elapsedMs = now - this.startAt;
       if (elapsedMs >= config.durationSec * 1000) return;
       const cycle = Math.floor(elapsedMs / this.intervalMs);
-      void this.adapter.playPattern(config.vibrationPattern ?? [0]);
+      if (pattern.length > 0) {
+        void this.adapter.playPattern(pattern);
+      }
       this.listener?.onStep?.({ elapsedSec: Math.floor(elapsedMs / 1000), cycle });
       // 簡易補正: 次回予定を更新し、遅延があれば差分を引く
       plannedNext += this.intervalMs;

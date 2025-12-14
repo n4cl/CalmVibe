@@ -20,7 +20,7 @@ export const useSessionViewModel = ({
   engine: GuidanceEngine;
   repo: SettingsRepository;
 }): SessionViewModel => {
-  const [mode, setMode] = useState<GuidanceMode>('BREATH');
+  const [mode, setMode] = useState<GuidanceMode>('VIBRATION');
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState('状態: 待機中');
   const [cycle, setCycle] = useState(0);
@@ -33,7 +33,8 @@ export const useSessionViewModel = ({
   const start = useCallback(async () => {
     if (running) return;
     const settings = await loadSettings();
-    const pattern = mapPatternToMs(settings.pattern);
+    const pattern =
+      mode === 'BREATH' ? [] : mapPatternToMs(settings.pattern);
     const result = await engine.startGuidance(
       {
         bpm: settings.bpm,

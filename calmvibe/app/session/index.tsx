@@ -6,6 +6,7 @@ import { NativeHapticsAdapter, SimpleGuidanceEngine } from '../../src/guidance';
 import { GuidanceEngine, GuidanceMode } from '../../src/guidance/types';
 import { useSessionViewModel } from './useSessionViewModel';
 import { BreathVisualGuide } from './visualGuide';
+import { useKeepAwake } from 'expo-keep-awake';
 
 export type SessionScreenProps = {
   guidanceEngine?: GuidanceEngine;
@@ -23,6 +24,7 @@ export default function SessionScreen({ guidanceEngine, settingsRepo }: SessionS
   );
 
   const vm = useSessionViewModel({ engine, repo });
+  useKeepAwake(vm.running);
 
   const modeButton = (mode: GuidanceMode, label: string) => (
     <Pressable
@@ -42,8 +44,9 @@ export default function SessionScreen({ guidanceEngine, settingsRepo }: SessionS
 
       <Text style={styles.sectionTitle}>ガイドモード</Text>
       <View style={styles.chipRow}>
-        {modeButton('BREATH', '視覚ガイド')}
         {modeButton('VIBRATION', '振動のみ')}
+        {modeButton('BREATH', '呼吸のみ')}
+        {modeButton('BOTH', '併用')}
       </View>
 
       <View style={styles.guideBox}>
