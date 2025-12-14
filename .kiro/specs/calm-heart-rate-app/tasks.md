@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 設定データモデルとリポジトリ
+- [x] 1. 設定データモデルとリポジトリ
   - BPM(40-90), durationSec(60-300), intensity, breathPresetを保存/取得できるようSchemaとDAOを整備し、既存データをマイグレーションする。
   - デフォルト値（BPM=60, duration=180, intensity=中, breathPreset=4-6-4）を返すフェイルセーフを実装する。
   - _Requirements: 1.1,1.2,1.4,1.5,3.1_

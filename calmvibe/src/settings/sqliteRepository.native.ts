@@ -8,7 +8,27 @@ type DB = any;
 const ensureTable = (db: DB) => {
   db.transaction((tx: any) => {
     tx.executeSql(
-      'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY NOT NULL, bpm INT, durationSec INT, intensity TEXT, useBreath INT, breathPreset TEXT, updatedAt TEXT)'
+      'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY NOT NULL, bpm INT, durationSec INT, intensity TEXT, breathPreset TEXT, updatedAt TEXT)'
+    );
+
+    // 移行: 旧スキーマ(useBreath列あり)から新スキーマへコピー
+    tx.executeSql(
+      'PRAGMA table_info(settings)',
+      [],
+      (_: any, result: any) => {
+        const hasUseBreath = result.rows._array?.some((c: any) => c.name === 'useBreath');
+        if (!hasUseBreath) return;
+
+        tx.executeSql('ALTER TABLE settings RENAME TO settings_old');
+        tx.executeSql(
+          'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY NOT NULL, bpm INT, durationSec INT, intensity TEXT, breathPreset TEXT, updatedAt TEXT)'
+        );
+        tx.executeSql(
+          'INSERT INTO settings (id, bpm, durationSec, intensity, breathPreset, updatedAt) SELECT id, bpm, durationSec, intensity, breathPreset, updatedAt FROM settings_old'
+        );
+        tx.executeSql('DROP TABLE IF EXISTS settings_old');
+      },
+      () => false
     );
   });
 };
@@ -17,7 +37,7 @@ const queryAll = (db: DB): Promise<SettingsValues | undefined> =>
   new Promise((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
-        'SELECT bpm, durationSec, intensity, useBreath, breathPreset FROM settings WHERE id = 1 LIMIT 1',
+        'SELECT bpm, durationSec, intensity, breathPreset FROM settings WHERE id = 1 LIMIT 1',
         [],
         (_: any, result: any) => {
           const row = result.rows.item(0);
@@ -29,7 +49,6 @@ const queryAll = (db: DB): Promise<SettingsValues | undefined> =>
             bpm: row.bpm,
             durationSec: row.durationSec,
             intensity: row.intensity,
-            useBreath: row.useBreath === 1,
             breathPreset: row.breathPreset,
           } as SettingsValues);
         },
@@ -45,8 +64,8 @@ const upsert = (db: DB, values: SettingsValues): Promise<void> =>
   new Promise((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
-        'INSERT INTO settings (id, bpm, durationSec, intensity, useBreath, breathPreset, updatedAt) VALUES (1, ?, ?, ?, ?, ?, datetime("now")) ON CONFLICT(id) DO UPDATE SET bpm=excluded.bpm, durationSec=excluded.durationSec, intensity=excluded.intensity, useBreath=excluded.useBreath, breathPreset=excluded.breathPreset, updatedAt=datetime("now")',
-        [values.bpm, values.durationSec, values.intensity, values.useBreath ? 1 : 0, values.breathPreset],
+        'INSERT INTO settings (id, bpm, durationSec, intensity, breathPreset, updatedAt) VALUES (1, ?, ?, ?, ?, datetime("now")) ON CONFLICT(id) DO UPDATE SET bpm=excluded.bpm, durationSec=excluded.durationSec, intensity=excluded.intensity, breathPreset=excluded.breathPreset, updatedAt=datetime("now")',
+        [values.bpm, values.durationSec, values.intensity, values.breathPreset],
         () => resolve(),
         (_: any, error: any) => {
           reject(error);
