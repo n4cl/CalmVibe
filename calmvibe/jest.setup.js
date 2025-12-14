@@ -1,7 +1,7 @@
 import '@testing-library/jest-native/extend-expect';
 import 'react-native-gesture-handler/jestSetup';
 
-// Workaround for Expo import meta registry in Jest environment
+// Jest環境でExpoのimport meta registryがない問題への暫定対応
 if (!globalThis.__ExpoImportMetaRegistry) {
   globalThis.__ExpoImportMetaRegistry = {};
 }
