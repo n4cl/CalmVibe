@@ -7,8 +7,8 @@ import LogsScreen from '../logs';
 
 describe('Base screens', () => {
   it('renders Settings screen', () => {
-    const { getByText } = render(<SettingsScreen />);
-    expect(getByText(/設定/i)).toBeTruthy();
+    const { getAllByText } = render(<SettingsScreen />);
+    expect(getAllByText(/設定/i).length).toBeGreaterThan(0);
   });
 
   it('renders Session screen', () => {

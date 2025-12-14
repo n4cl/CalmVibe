@@ -1,20 +1,26 @@
-export type TempoPreset = '4-6-4' | '5-5-5' | '4-4-4';
-export type VibrationIntensity = 'low' | 'medium' | 'strong';
 export type VibrationPattern = 'short' | 'pulse' | 'wave';
+export type VibrationIntensity = 'low' | 'medium' | 'strong';
+export type BreathPreset = '4-6-4' | '5-5-5' | '4-4-4';
 
 export type SettingsValues = {
-  tempoPreset: TempoPreset;
-  intensity: VibrationIntensity;
+  bpm: number; // 40-90
+  durationSec: number; // 60-300
   pattern: VibrationPattern;
+  intensity: VibrationIntensity;
+  useBreath: boolean;
+  breathPreset: BreathPreset;
 };
 
 export interface SettingsRepository {
-  getSettings(): Promise<SettingsValues>;
-  saveSettings(values: SettingsValues): Promise<void>;
+  get(): Promise<SettingsValues>;
+  save(values: SettingsValues): Promise<void>;
 }
 
 export const defaultSettings: SettingsValues = {
-  tempoPreset: '4-6-4',
-  intensity: 'medium',
+  bpm: 60,
+  durationSec: 180,
   pattern: 'pulse',
+  intensity: 'medium',
+  useBreath: true,
+  breathPreset: '4-6-4',
 };

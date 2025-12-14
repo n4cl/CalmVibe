@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import SessionScreen from '../session';
 import { GuidanceConfig, GuidanceListener, GuidanceEngine } from '../../src/guidance/types';
 import { SettingsRepository, SettingsValues } from '../../src/settings/types';
@@ -35,18 +35,21 @@ class MockGuidanceEngine implements GuidanceEngine {
 }
 
 const settings: SettingsValues = {
-  tempoPreset: '5-5-5',
-  intensity: 'medium',
+  bpm: 60,
+  durationSec: 180,
   pattern: 'pulse',
+  intensity: 'medium',
+  useBreath: false,
+  breathPreset: '4-6-4',
 };
 
 const createRepo = (): SettingsRepository => ({
-  getSettings: jest.fn().mockResolvedValue(settings),
-  saveSettings: jest.fn(),
+  get: jest.fn().mockResolvedValue(settings),
+  save: jest.fn(),
 });
 
 describe('SessionScreen', () => {
-  it('デフォルトで呼吸ガイドモードで開始する', async () => {
+  it('デフォルトで振動モードで開始する', async () => {
     const engine = new MockGuidanceEngine();
     const repo = createRepo();
 
@@ -57,8 +60,8 @@ describe('SessionScreen', () => {
     fireEvent.press(getByText('開始'));
 
     await findByText('状態: 進行中...');
-    expect(engine.lastConfig?.mode).toBe('BREATH');
-    expect(engine.lastConfig?.tempo).toBe('5-5-5');
+    expect(engine.lastConfig?.bpm).toBe(60);
+    expect(engine.lastConfig?.durationSec).toBe(180);
   });
 
   it('振動のみモードで開始できる', async () => {
@@ -72,7 +75,7 @@ describe('SessionScreen', () => {
     fireEvent.press(getByText('開始'));
 
     await findByText('状態: 進行中...');
-    expect(engine.lastConfig?.mode).toBe('VIBRATION');
+    expect(engine.lastConfig?.visualEnabled).toBe(false);
   });
 
   it('停止でstopGuidanceが呼ばれ停止メッセージを表示する', async () => {
@@ -100,7 +103,7 @@ describe('SessionScreen', () => {
     fireEvent.press(getByText('開始'));
     await findByText('状態: 進行中...');
 
-    engine.emitStep(1, 14);
+    engine.emitStep(1, 1);
 
     await findByText('サイクル 1');
   });

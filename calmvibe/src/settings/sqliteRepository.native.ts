@@ -2,16 +2,13 @@ import * as SQLite from 'expo-sqlite';
 import { SettingsRepository, SettingsValues, defaultSettings } from './types';
 
 const DB_NAME = 'calmvibe.db';
-
-// テスト環境やSQLite非対応環境ではメモリにフォールバックする
 const memoryStore: { value: SettingsValues | null } = { value: null };
-
 type DB = any;
 
 const ensureTable = (db: DB) => {
   db.transaction((tx: any) => {
     tx.executeSql(
-      'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY NOT NULL, tempoPreset TEXT, intensity TEXT, pattern TEXT, updatedAt TEXT)'
+      'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY NOT NULL, bpm INT, durationSec INT, pattern TEXT, intensity TEXT, useBreath INT, breathPreset TEXT, updatedAt TEXT)'
     );
   });
 };
@@ -20,7 +17,7 @@ const queryAll = (db: DB): Promise<SettingsValues | undefined> =>
   new Promise((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
-        'SELECT tempoPreset, intensity, pattern FROM settings WHERE id = 1 LIMIT 1',
+        'SELECT bpm, durationSec, pattern, intensity, useBreath, breathPreset FROM settings WHERE id = 1 LIMIT 1',
         [],
         (_: any, result: any) => {
           const row = result.rows.item(0);
@@ -29,9 +26,12 @@ const queryAll = (db: DB): Promise<SettingsValues | undefined> =>
             return;
           }
           resolve({
-            tempoPreset: row.tempoPreset,
-            intensity: row.intensity,
+            bpm: row.bpm,
+            durationSec: row.durationSec,
             pattern: row.pattern,
+            intensity: row.intensity,
+            useBreath: row.useBreath === 1,
+            breathPreset: row.breathPreset,
           } as SettingsValues);
         },
         (_: any, error: any) => {
@@ -46,8 +46,15 @@ const upsert = (db: DB, values: SettingsValues): Promise<void> =>
   new Promise((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
-        'INSERT INTO settings (id, tempoPreset, intensity, pattern, updatedAt) VALUES (1, ?, ?, ?, datetime("now")) ON CONFLICT(id) DO UPDATE SET tempoPreset=excluded.tempoPreset, intensity=excluded.intensity, pattern=excluded.pattern, updatedAt=datetime("now")',
-        [values.tempoPreset, values.intensity, values.pattern],
+        'INSERT INTO settings (id, bpm, durationSec, pattern, intensity, useBreath, breathPreset, updatedAt) VALUES (1, ?, ?, ?, ?, ?, ?, datetime("now")) ON CONFLICT(id) DO UPDATE SET bpm=excluded.bpm, durationSec=excluded.durationSec, pattern=excluded.pattern, intensity=excluded.intensity, useBreath=excluded.useBreath, breathPreset=excluded.breathPreset, updatedAt=datetime("now")',
+        [
+          values.bpm,
+          values.durationSec,
+          values.pattern,
+          values.intensity,
+          values.useBreath ? 1 : 0,
+          values.breathPreset,
+        ],
         () => resolve(),
         (_: any, error: any) => {
           reject(error);
@@ -70,7 +77,7 @@ export class SqliteSettingsRepository implements SettingsRepository {
     }
   }
 
-  async getSettings(): Promise<SettingsValues> {
+  async get(): Promise<SettingsValues> {
     if (this.useMemory || !this.db) {
       if (!memoryStore.value) memoryStore.value = defaultSettings;
       return memoryStore.value;
@@ -85,7 +92,7 @@ export class SqliteSettingsRepository implements SettingsRepository {
     }
   }
 
-  async saveSettings(values: SettingsValues): Promise<void> {
+  async save(values: SettingsValues): Promise<void> {
     if (this.useMemory || !this.db) {
       memoryStore.value = values;
       return;

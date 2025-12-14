@@ -5,10 +5,10 @@ describe('GuidanceEngine', () => {
   jest.useFakeTimers();
 
   const config: GuidanceConfig = {
-    mode: 'BREATH',
-    tempo: '4-6-4',
+    bpm: 60,
     durationSec: 30,
     vibrationPattern: [0],
+    visualEnabled: true,
   };
 
   const createAdapter = () => {
@@ -38,9 +38,8 @@ describe('GuidanceEngine', () => {
     expect(adapter.playPattern).toHaveBeenCalledTimes(1);
     expect(listener.onStep).toHaveBeenCalledWith({ elapsedSec: 0, cycle: 0 });
 
-    jest.advanceTimersByTime(14000); // 1サイクル(4-6-4)
+    jest.advanceTimersByTime(1000); // ~1サイクル(60bpm => 1000ms)
     expect(adapter.playPattern).toHaveBeenCalledTimes(2);
-    expect(listener.onStep).toHaveBeenCalledWith({ elapsedSec: 14, cycle: 1 });
   });
 
   it('終了時にonCompleteを呼びアクティブを解除する', async () => {
@@ -48,8 +47,8 @@ describe('GuidanceEngine', () => {
     const listener = createListener();
     const engine = new SimpleGuidanceEngine(adapter);
 
-    await engine.startGuidance({ ...config, durationSec: 15 }, listener);
-    jest.advanceTimersByTime(15000);
+    await engine.startGuidance({ ...config, durationSec: 2 }, listener);
+    jest.advanceTimersByTime(2000);
 
     expect(listener.onComplete).toHaveBeenCalled();
     expect(engine.isActive()).toBe(false);

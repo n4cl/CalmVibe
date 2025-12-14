@@ -3,8 +3,6 @@ import { GuidanceEngine, GuidanceMode } from '../../src/guidance/types';
 import { SettingsRepository, SettingsValues } from '../../src/settings/types';
 import { mapPatternToMs } from './utils';
 
-const DEFAULT_DURATION = 180; // 秒
-
 export type SessionViewModel = {
   mode: GuidanceMode;
   running: boolean;
@@ -28,7 +26,7 @@ export const useSessionViewModel = ({
   const [cycle, setCycle] = useState(0);
 
   const loadSettings = useCallback(async (): Promise<SettingsValues> => {
-    const settings = await repo.getSettings();
+    const settings = await repo.get();
     return settings;
   }, [repo]);
 
@@ -38,10 +36,11 @@ export const useSessionViewModel = ({
     const pattern = mapPatternToMs(settings.pattern);
     const result = await engine.startGuidance(
       {
-        mode,
-        tempo: settings.tempoPreset as any,
-        durationSec: DEFAULT_DURATION,
+        bpm: settings.bpm,
+        durationSec: settings.durationSec,
         vibrationPattern: pattern,
+        visualEnabled: mode !== 'VIBRATION',
+        breathPreset: settings.breathPreset,
       },
       {
         onStep: ({ cycle }) => {

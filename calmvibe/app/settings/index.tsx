@@ -5,21 +5,22 @@ import { SqliteSettingsRepository } from '../../src/settings/sqliteRepository';
 import {
   SettingsRepository,
   SettingsValues,
-  TempoPreset,
-  VibrationIntensity,
   VibrationPattern,
+  VibrationIntensity,
+  BreathPreset,
   defaultSettings,
 } from '../../src/settings/types';
 import { useSettingsViewModel } from './useSettingsViewModel';
+import { mapPatternToMs } from '../session/utils';
 
 export type SettingsScreenProps = {
   repository?: SettingsRepository;
 };
 
-const tempoOptions: { label: string; value: TempoPreset }[] = [
-  { label: '4-6-4', value: '4-6-4' },
-  { label: '5-5-5', value: '5-5-5' },
-  { label: '4-4-4', value: '4-4-4' },
+const patternOptions: { label: string; value: VibrationPattern; jp: string }[] = [
+  { label: 'シンプル', value: 'short', jp: 'シンプル' },
+  { label: 'パルス', value: 'pulse', jp: 'パルス' },
+  { label: 'ウェーブ', value: 'wave', jp: 'ウェーブ' },
 ];
 
 const intensityOptions: { label: string; value: VibrationIntensity }[] = [
@@ -28,14 +29,10 @@ const intensityOptions: { label: string; value: VibrationIntensity }[] = [
   { label: '強', value: 'strong' },
 ];
 
-const patternOptions: { label: string; value: VibrationPattern; jp: string }[] = [
-  { label: 'シンプル', value: 'short', jp: 'シンプル' },
-  { label: 'パルス', value: 'pulse', jp: 'パルス' },
-  { label: 'ウェーブ', value: 'wave', jp: 'ウェーブ' },
-];
+const breathOptions: BreathPreset[] = ['4-6-4', '5-5-5', '4-4-4'];
 
-const labelForIntensity = (i: VibrationIntensity) => intensityOptions.find((o) => o.value === i)?.label ?? '中';
 const labelForPattern = (p: VibrationPattern) => patternOptions.find((o) => o.value === p)?.jp ?? 'パルス';
+const labelForIntensity = (i: VibrationIntensity) => intensityOptions.find((o) => o.value === i)?.label ?? '中';
 
 export default function SettingsScreen({ repository }: SettingsScreenProps) {
   const repo = useMemo<SettingsRepository>(() => repository ?? new SqliteSettingsRepository(), [repository]);
@@ -43,13 +40,32 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
   const scale = useRef(new Animated.Value(1)).current;
   const [previewing, setPreviewing] = useState(false);
 
+  const changeBpm = (delta: number) => {
+    const next = Math.min(90, Math.max(40, vm.values.bpm + delta));
+    vm.setBpm(next);
+  };
+
+  const changeDuration = (delta: number) => {
+    const next = Math.min(300, Math.max(60, vm.values.durationSec + delta));
+    vm.setDuration(next);
+  };
+
   const runPreview = async () => {
     setPreviewing(true);
+    const pattern = mapPatternToMs(vm.values.pattern);
+    pattern.forEach((delay, idx) => {
+      setTimeout(() => {
+        Haptics.impactAsync(
+          vm.values.intensity === 'strong'
+            ? Haptics.ImpactFeedbackStyle.Heavy
+            : Haptics.ImpactFeedbackStyle.Medium
+        ).catch(() => {});
+      }, delay);
+    });
     Animated.sequence([
-      Animated.timing(scale, { toValue: 1.3, duration: 500, useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1.2, duration: 400, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start(() => setPreviewing(false));
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   const onSave = async () => {
@@ -62,14 +78,26 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>設定</Text>
 
-      <Text style={styles.sectionTitle}>呼吸テンポプリセット</Text>
+      <Text style={styles.sectionTitle}>リズム設定</Text>
+      <View style={styles.row}> 
+        <Text style={styles.label}>BPM: {current.bpm}</Text>
+        <Pressable onPress={() => changeBpm(+1)} style={styles.smallBtn}><Text style={styles.smallLabel}>+BPM</Text></Pressable>
+        <Pressable onPress={() => changeBpm(-1)} style={styles.smallBtn}><Text style={styles.smallLabel}>-BPM</Text></Pressable>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>時間: {current.durationSec}秒</Text>
+        <Pressable onPress={() => changeDuration(+30)} style={styles.smallBtn}><Text style={styles.smallLabel}>+時間</Text></Pressable>
+        <Pressable onPress={() => changeDuration(-30)} style={styles.smallBtn}><Text style={styles.smallLabel}>-時間</Text></Pressable>
+      </View>
+
+      <Text style={styles.sectionTitle}>バイブパターン</Text>
       <View style={styles.optionRow}>
-        {tempoOptions.map((opt) => (
+        {patternOptions.map((opt) => (
           <ChoiceButton
             key={opt.value}
-            label={opt.label}
-            selected={current.tempoPreset === opt.value}
-            onPress={() => vm.setTempo(opt.value)}
+            label={opt.jp}
+            selected={current.pattern === opt.value}
+            onPress={() => vm.setPattern(opt.value)}
           />
         ))}
       </View>
@@ -86,21 +114,26 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>バイブパターン</Text>
+      <Text style={styles.sectionTitle}>呼吸ガイド</Text>
       <View style={styles.optionRow}>
-        {patternOptions.map((opt) => (
+        <ChoiceButton
+          label={current.useBreath ? '呼吸ON' : '呼吸OFF'}
+          selected={current.useBreath}
+          onPress={() => vm.setUseBreath(!current.useBreath)}
+        />
+        {breathOptions.map((preset) => (
           <ChoiceButton
-            key={opt.value}
-            label={opt.jp}
-            selected={current.pattern === opt.value}
-            onPress={() => vm.setPattern(opt.value)}
+            key={preset}
+            label={preset}
+            selected={current.breathPreset === preset}
+            onPress={() => vm.setBreathPreset(preset)}
           />
         ))}
       </View>
 
       <View style={styles.previewContainer}>
         <Animated.View style={[styles.circle, { transform: [{ scale }] }]} />
-        <Text style={styles.previewText}>{previewing ? 'プレビュー再生中' : '円の拡大縮小で呼吸をガイドします'}</Text>
+        <Text style={styles.previewText}>{previewing ? 'プレビュー再生中' : '振動パターンを体感できます'}</Text>
         <View style={styles.buttonRow}>
           <ActionButton label="プレビュー" onPress={runPreview} />
           <ActionButton label={vm.saving ? '保存中...' : '保存'} onPress={onSave} disabled={vm.saving} />
@@ -108,9 +141,12 @@ export default function SettingsScreen({ repository }: SettingsScreenProps) {
       </View>
 
       <View style={styles.summaryBox}>
-        <Text style={styles.summaryText}>現在のテンポ: {current.tempoPreset}</Text>
-        <Text style={styles.summaryText}>バイブ強度: {labelForIntensity(current.intensity)}</Text>
-        <Text style={styles.summaryText}>パターン: {labelForPattern(current.pattern)}</Text>
+        <Text style={styles.summaryText}>現在のBPM: {current.bpm}</Text>
+        <Text style={styles.summaryText}>現在の時間: {current.durationSec}秒</Text>
+        <Text style={styles.summaryText}>現在のパターン: {labelForPattern(current.pattern)}</Text>
+        <Text style={styles.summaryText}>現在の強度: {labelForIntensity(current.intensity)}</Text>
+        <Text style={styles.summaryText}>呼吸ガイド: {current.useBreath ? 'ON' : 'OFF'}</Text>
+        <Text style={styles.summaryText}>呼吸プリセット: {current.breathPreset}</Text>
       </View>
     </ScrollView>
   );
@@ -132,6 +168,8 @@ const styles = StyleSheet.create({
   container: { padding: 20, gap: 12 },
   title: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
   sectionTitle: { fontSize: 16, fontWeight: '600', marginTop: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  label: { fontSize: 14, color: '#333' },
   optionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginVertical: 4 },
   choice: {
     paddingVertical: 8,
@@ -178,4 +216,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef2f7',
   },
   summaryText: { fontSize: 14, color: '#222', marginVertical: 2 },
+  smallBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#e8f1ff',
+    borderWidth: 1,
+    borderColor: '#2563eb',
+  },
+  smallLabel: { color: '#1746b4', fontWeight: '700', fontSize: 12 },
 });
