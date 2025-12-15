@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 設定永続化とデフォルト復元
+- [x] 1. 設定永続化とデフォルト復元
 - [x] 1.1 SQLiteスキーマとメモリフォールバック
   - settingsテーブルを設計準拠のBreathPattern構造（bpm, durationSec[60-300|null], intensity, breath.type/inhale/hold/exhale/cycles）で初期化し、Web/テスト時のメモリ実装も整備する。
   - _Requirements: 1.1,1.2,1.4,1.5,3.1_
@@ -9,7 +9,7 @@
   - _Requirements: 1.1,1.2,1.4,1.5,3.1_
 
 - [ ] 2. セッション設定UI＆プレビュー（振動/呼吸分離）
-- [ ] 2.1 振動設定UI（BPM/時間/強度）と自動復元
+- [x] 2.1 振動設定UI（BPM/時間/強度）と自動復元
   - セッション画面に常設し、編集→保存→再訪で値が反映されることを確認する。
   - _Requirements: 1.1,1.2,1.4,1.5_
 - [ ] 2.2 呼吸設定UI（吸・止・吐・cycles）とプリセットショートカット
