@@ -4,7 +4,7 @@
 - [x] 1.1 SQLiteスキーマとメモリフォールバック
   - settingsテーブルを設計準拠のBreathPattern構造（bpm, durationSec[60-300|null], intensity, breath.type/inhale/hold/exhale/cycles）で初期化し、Web/テスト時のメモリ実装も整備する。
   - _Requirements: 1.1,1.2,1.4,1.5,3.1_
-- [ ] 1.2 SettingsRepository実装とデフォルト適用
+- [x] 1.2 SettingsRepository実装とデフォルト適用
   - 保存/取得で値域を検証しつつデフォルトを返すフェイルセーフを備える（bpm40-90, duration60-300|null, cycles null=∞）。
   - _Requirements: 1.1,1.2,1.4,1.5,3.1_
 

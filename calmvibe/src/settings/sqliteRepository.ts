@@ -16,19 +16,25 @@ const TABLE_SQL = `CREATE TABLE IF NOT EXISTS settings (
 )`;
 
 const toRow = (values: SettingsValues) => {
+  const bpm = clamp(values.bpm, 40, 90, defaultSettings.bpm);
+  const durationSec =
+    values.durationSec === null ? null : clamp(values.durationSec, 60, 300, defaultSettings.durationSec as number);
+  const intensity = values.intensity;
+  const breath = normalizeBreath(values.breath);
+
   const base = {
-    bpm: values.bpm,
-    durationSec: values.durationSec === null ? null : values.durationSec,
-    intensity: values.intensity,
-    inhaleSec: values.breath.inhaleSec,
-    exhaleSec: values.breath.exhaleSec,
-    cycles: values.breath.cycles,
+    bpm,
+    durationSec,
+    intensity,
+    inhaleSec: breath.inhaleSec,
+    exhaleSec: breath.exhaleSec,
+    cycles: breath.cycles,
   };
-  if (values.breath.type === 'three-phase') {
+  if (breath.type === 'three-phase') {
     return {
       ...base,
       breathType: 'three-phase',
-      holdSec: values.breath.holdSec,
+      holdSec: breath.holdSec,
     };
   }
   return {
@@ -133,10 +139,33 @@ export class SqliteSettingsRepository implements SettingsRepository {
   }
 
   async save(values: SettingsValues): Promise<void> {
+    const normalized: SettingsValues = {
+      bpm: clamp(values.bpm, 40, 90, defaultSettings.bpm),
+      durationSec:
+        values.durationSec === null ? null : clamp(values.durationSec, 60, 300, defaultSettings.durationSec as number),
+      intensity: values.intensity,
+      breath: normalizeBreath(values.breath),
+    };
+
     if (this.useMemory || !this.db) {
-      memoryStore.value = values;
+      memoryStore.value = normalized;
       return;
     }
-    await upsert(this.db, values);
+    await upsert(this.db, normalized);
   }
 }
+
+const clamp = (val: number, min: number, max: number, fallback: number) => {
+  if (typeof val !== 'number' || Number.isNaN(val)) return fallback;
+  if (val < min || val > max) return fallback;
+  return val;
+};
+
+const normalizeBreath = (breath: SettingsValues['breath']) => {
+  if (breath.type === 'two-phase') {
+    if (breath.inhaleSec <= 0 || breath.exhaleSec <= 0) return defaultSettings.breath;
+    return breath;
+  }
+  if (breath.inhaleSec <= 0 || breath.exhaleSec <= 0 || breath.holdSec <= 0) return defaultSettings.breath;
+  return breath;
+};
