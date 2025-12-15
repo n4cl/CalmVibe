@@ -1,298 +1,297 @@
-# Design Document
+# デザインドキュメント
+
+---
+**Purpose**: 振動/呼吸ガイドを即時開始できるセッション体験を軸に、2タブ（セッション/履歴）へ再編し、設定・ガイド実行・記録をシンプルに運用できるようにする。
+**Approach**: 既存の MVVM + UseCase + Repository を踏襲し、プレビュー廃止後の開始/停止フローとタブ構成を再設計する。
+---
 
 ## Overview
-本機能は不安や動揺で鼓動が高まったときに、ユーザーが状況に応じて「振動ガイド（BPMベース）」または「呼吸ガイド（フェーズ秒数ベース）」を選択し、振動と視覚の両方でペースを得て落ち着きを取り戻すことを目的とする。呼吸ガイドは2フェーズ（吸う/吐く）または3フェーズ（吸う/止める/吐く）の秒数とサイクル回数を設定できる。心拍は手入力のみで記録し、履歴を端末ローカルに保存・参照する。
+本機能は、セッション（振動/呼吸ガイドの開始・停止・設定）と履歴確認を2タブで提供し、発作時でも最少タップでガイドを開始できるようにする。タブ切替でも設定や入力状態を失わず、記録を後から参照できる。
 
 ### Goals
-- 振動ガイド（BPM）を設定・保存し、±5%以内の間隔で「1拍1振動」を提供し視覚パルスと同期する。
-- 呼吸ガイドはフェーズ秒数（2/3フェーズ）とサイクル回数を設定し、フェーズ開始ごとに振動を出しつつ視覚ガイドを同期させ、振動ガイドと独立に切替可能にする。
-- セッション前後の心拍・主観評価・ガイド種別をローカルに記録・閲覧できる。
+- セッションタブでモード選択→開始/停止がワンタップ圏内で完結する。
+- 呼吸/振動ガイドが視覚ガイドと同期し、BPM ±5%目標で実行される。
+- 履歴タブで最新順の記録に即アクセスし、データはローカルに保持される。
 
 ### Non-Goals
 - 自動心拍計測や外部デバイス連携。
-- 長時間バックグラウンド実行（Expo Go / Development Build では非対応）。画面ON/前面前提。
+- バックグラウンド継続（Expo Go 前面前提）。
 - クラウド同期・共有。
 
 ## Architecture
 
+### Existing Architecture Analysis
+- 既存: Expo/React Native + TypeScript、MVVM+UseCase+Repository、expo-sqlite／expo-haptics、Webは `.web.ts` メモリフォールバック。
+- 変更点: プレビュー廃止による開始/停止単一路線、タブ再編（セッション/履歴の2タブ）、設定状態をタブ切替で保持するための状態スコープ調整。
+
 ### Architecture Pattern & Boundary Map
-選択パターン: MVVM + UseCase + Repository。UIはReact Native (Expo)、ドメインはGuidanceEngine/UseCase、データはSQLite、プラットフォームAPI差異はHapticsAdapterで隔離。
+- パターン: MVVM + UseCase + Repository（継続）。UIはタブ構成でSessionScreen/LogsScreenを分離。ViewModelはタブ間で状態を持続。
+- 境界: プレゼンテーション(UI), ドメイン(UseCase, GuidanceEngine), データ(Repositories), プラットフォーム(HapticsAdapter)。
 
 ```mermaid
 graph TB
-  UI[RN Screens/Components] --> VM[ViewModels]
-  VM --> UC[SessionUseCase]
+  subgraph Tabs
+    SessionTab[SessionTab]
+    LogsTab[LogsTab]
+  end
+  subgraph UI
+    Screen[SessionScreen]
+    Visual[BreathVisualGuide]
+    LogsScreen[LogsScreen]
+  end
+  subgraph Domain
+    VM[SessionViewModel]
+    UC[SessionUseCase]
+    GE[GuidanceEngine]
+  end
+  subgraph Data
+    SettingsRepo[SettingsRepository]
+    SessionRepo[SessionRepository]
+  end
+  Haptics[HapticsAdapter]
+
+  SessionTab --> Screen
+  LogsTab --> LogsScreen
+  Screen --> VM
+  VM --> UC
   VM --> SettingsRepo
-  UC --> GE[GuidanceEngine]
+  UC --> GE
   UC --> SessionRepo
-  GE --> HapticsAdapter
-  SettingsRepo --> SQLite[(expo-sqlite)]
-  SessionRepo --> SQLite
+  GE --> Haptics
+  GE --> VM
 ```
 
 ### Technology Stack
-| Layer | Choice / Version | Role | Notes |
-|-------|------------------|------|-------|
-| Frontend | React Native + Expo (Go/Dev Build), TypeScript | 画面・アニメ・入力 | expo-router, Animated |
-| Domain | TypeScript | GuidanceEngine, SessionUseCase | タイマー補正で±5%を目標 |
-| Data | expo-sqlite | 設定・履歴永続化 | Webはメモリフォールバック |
-| Platform | expo-haptics | 振動実行 | Webはダミー |
+
+| Layer | Choice / Version | Role in Feature | Notes |
+|-------|------------------|-----------------|-------|
+| Frontend | React Native (Expo) + TypeScript | セッション・履歴UI、タブナビゲーション | expo-router tabs |
+| Domain | TypeScript | SessionUseCase, GuidanceEngine | ドリフト補正で±5%目標 |
+| Data | expo-sqlite / メモリ(.web) | 設定・履歴保存 | Webはメモリフォールバック |
+| Platform | expo-haptics | 振動実行/停止 | Webはノーオペ |
 | Infra | expo-keep-awake | スリープ防止 | 画面ON前提 |
 
 ## System Flows
 
-### セッション開始〜停止（モード切替）
+### タブ起動〜切替
 ```mermaid
 sequenceDiagram
   participant User
-  participant UI as SessionScreen
-  participant VM as SessionVM
-  participant UC as SessionUseCase
-  participant GE as GuidanceEngine
-  participant HA as HapticsAdapter
+  participant Tabs
+  participant SessionTab
+  participant LogsTab
+  participant VM as SessionViewModel
 
-  User->>UI: モード選択（振動/呼吸）
-  User->>UI: 開始タップ
-  UI->>VM: start()
-  VM->>UC: beginSession(config from settings, default mode=VIBRATION)
-  UC->>GE: startGuidance(config by mode)
-  GE-->>VM: onStep(cycle, elapsed)
-  alt 完了/停止
-    VM->>UC: stopSession()
-    UC->>GE: stopGuidance()
-    GE->>HA: stop()
-    VM-->>UI: 状態更新（完了/停止）
+  User->>Tabs: アプリ起動
+  Tabs->>SessionTab: 初期表示（デフォルト）
+  SessionTab->>VM: settings読み込み（キャッシュ/Repo）
+  alt 履歴を見る
+    User->>Tabs: Logsタブ選択
+    Tabs->>LogsTab: 表示
   end
+  User->>Tabs: Sessionタブへ戻る
+  SessionTab->>VM: 既存状態を再利用（再読込しない）
 ```
 
-### セッション終了〜記録保存フロー
+### ガイド開始〜停止〜記録
 ```mermaid
 sequenceDiagram
   participant User
-  participant UI as SessionScreen
-  participant VM as SessionVM
-  participant UC as SessionUseCase
-  participant SR as SessionRepository
+  participant Screen
+  participant VM
+  participant UC
+  participant GE
+  participant Haptics
+  participant Repo as SessionRepo
 
-  User->>UI: 手動停止 or duration/cycles完了
-  UI->>VM: onStop()
-  VM->>UC: stop() // Guidance停止と状態確定
-  VM-->>UI: 終了記録モーダル表示
-  User->>UI: 終了情報入力 (guideType, preHr?, postHr?, comfort?, improvement?, breathPreset?, bpm?)
-  UI->>VM: submitCompletion(data)
-  VM->>UC: complete(data)
-  UC->>SR: 保存 (session_records)
-  SR-->>UC: 保存結果 (ok/error)
-  alt 保存成功
-    VM-->>UI: 完了トースト/遷移
-  else 保存失敗
-    VM-->>UI: エラートースト + リトライ選択
+  User->>Screen: 開始ボタン（mode=VIBRATION/BREATH）
+  Screen->>VM: start(mode)
+  VM->>UC: start(mode)
+  UC->>GE: startGuidance(config, listener)
+  GE->>Haptics: play pattern (先頭拍)
+  GE-->>VM: onStep(cycle, elapsed, phase?)
+  alt 時間上限 or 手動停止
+    User->>Screen: 停止
+    Screen->>VM: stop()
+    VM->>UC: stop()
+    UC->>GE: stopGuidance()
+    GE->>Haptics: stop
   end
+  VM->>UC: complete(input)
+  UC->>Repo: save session_record
 ```
 
 ## Requirements Traceability
+
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
-| 1.1 | BPM入力/スライダー保存（振動設定） | SessionScreen/VM | SettingsRepository | - |
-| 1.2 | 強度保存（共通） | SessionScreen/VM | SettingsRepository | - |
-| 1.3 | プレビューで単発振動を確認 | SessionScreen/VM | HapticsAdapter | - |
-| 1.4 | 次回自動適用 | SessionVM | SettingsRepository | - |
-| 1.5 | セッション時間設定＋手動停止 | SessionScreen/VM | SettingsRepository | - |
-| 2.1 | デフォルト振動で即時開始、呼吸モードに切替可 | SessionScreen/VM, SessionUseCase | SessionUseCase | セッション開始 |
-| 2.2 | BPM±5%で単発振動 | GuidanceEngine, HapticsAdapter | GuidanceEngine.startGuidance | セッション進行 |
-| 2.3 | 視覚ガイド同期・任意OFF | BreathVisualGuide, SessionVM | - | セッション進行 |
-| 2.4 | 確実停止（時間/手動） | SessionUseCase, GuidanceEngine | GuidanceEngine.stopGuidance | セッション完了 |
-| 3.1 | 呼吸プリセット保存（2/3フェーズ秒数・サイクル回数） | SessionScreen/VM | SettingsRepository | - |
-| 3.2 | 呼吸のみの開始 | SessionUseCase, GuidanceEngine | SessionUseCase | セッション開始 |
-| 3.3 | 振動のみの開始 | SessionUseCase | SessionUseCase | セッション開始 |
-| 4.1-4.6 | 記録・履歴表示 | SessionUseCase, SessionRepo, LogsScreen/VM | SessionRepository | 記録保存/閲覧 |
+| 1.1 | BPM保存(40-90) | SessionViewModel, SettingsRepository | SettingsRepository.save/get | 設定 |
+| 1.2 | 強度保存 | SessionViewModel, SettingsRepository | 同上 | 設定 |
+| 1.3 | 開始で即時実行・停止まで継続 | SessionUseCase, GuidanceEngine, HapticsAdapter | GuidanceEngine.start/stop | 開始/停止 |
+| 1.4 | 前回設定の自動適用 | SessionViewModel, SettingsRepository | get | 起動時 |
+| 1.5 | 時間設定/無制限 | SessionViewModel, SettingsRepository | save/get | 設定 |
+| 1.6 | デフォルト復元 | SessionViewModel, SettingsRepository | save/get | 設定 |
+| 2.1 | 振動ガイド開始・視覚同期 | GuidanceEngine, HapticsAdapter, BreathVisualGuide | startGuidance listener | 進行 |
+| 2.2 | BPM±5%目標 | GuidanceEngine | startGuidance | 進行 |
+| 2.3 | 視覚ガイドOFF許可 | SessionViewModel | UI state | 進行 |
+| 2.4 | 時間/手動停止で確実終了 | GuidanceEngine, SessionUseCase | stopGuidance | 停止 |
+| 2.5 | 呼吸フェーズ同期振動/視覚 | GuidanceEngine, BreathVisualGuide | startGuidance | 進行 |
+| 3.1 | 呼吸プリセット保持 | SettingsRepository | save/get | 設定 |
+| 3.2 | 呼吸モード開始 | SessionUseCase, GuidanceEngine | startGuidance | 開始 |
+| 3.3 | モード独立開始 | SessionUseCase | start | 開始 |
+| 4.1-4.6 | 記録と履歴表示 | SessionUseCase, SessionRepository, LogsScreen | complete/save/list | 完了/閲覧 |
+| 5.1 | タブを2つに限定 | TabLayout, SessionTab, LogsTab | tabs config | 起動 |
+| 5.2 | デフォルトでセッション表示 | TabLayout | tabs initial | 起動 |
+| 5.3 | 履歴タブで一覧即表示 | TabLayout, LogsScreen | tabs route | ナビ |
+| 5.4 | タブ切替で設定状態保持 | SessionViewModel | state scope | ナビ |
 
-## Components & Interfaces
+## Components and Interfaces
 
-| Component | Layer | Intent | Req | Dependencies | Contracts |
-|-----------|-------|--------|-----|--------------|-----------|
-| SettingsRepository | Data | 振動(BPM/時間/強度)＋呼吸フェーズ秒数/サイクル回数の保存・取得 | 1.1-1.5,3.1 | expo-sqlite (P0) | Service, State |
-| SessionRepository | Data | セッション記録の保存/取得 | 4.1-4.6 | expo-sqlite (P0) | Service, State |
-| HapticsAdapter | Platform | 振動実行と停止、失敗理由の通知 | 1.3,2.2 | expo-haptics (P0) | Service |
-| GuidanceEngine | Domain | モードに応じて振動パルスまたは呼吸フェーズ進行を管理し、視覚同期を通知 | 2.1-2.4,3.2 | HapticsAdapter (P0) | Service |
-| SessionUseCase | Domain | 設定読込→Guidance開始/停止、終了時の記録保存（振動/呼吸を切替） | 2.1-2.4,3.2,3.3,4.1-4.3 | GuidanceEngine, SessionRepository, SettingsRepository (P0) | Service |
-| SessionViewModel | Presentation | 設定CRUD/プレビュー＋開始/停止/進行表示（モード別UI切替） | 1.1-1.5,2.1-2.4,3.1-3.3 | SettingsRepository, HapticsAdapter, SessionUseCase (P0) | State |
-| BreathVisualGuide | Presentation | 呼吸/振動周期に同期した円アニメ | 2.3,2.5,3.2 | SessionViewModel (P1) | State |
-| LogsViewModel | Presentation | 履歴一覧/詳細取得 | 4.6 | SessionRepository (P0) | State |
+### サマリー
+| Component | Domain/Layer | Intent | Requirements | Dependencies (P0/P1) | Contracts |
+|-----------|--------------|--------|--------------|----------------------|-----------|
+| TabLayout | UI/Nav | 2タブ構成を定義（Session/Logs） | 5.1-5.3 | SessionScreen(P0), LogsScreen(P0) | State |
+| SessionScreen | UI | 設定編集と開始/停止操作 | 1.*,2.*,3.*,5.4 | SessionViewModel(P0) | State |
+| LogsScreen | UI | 履歴一覧/詳細表示 | 4.*,5.3 | SessionRepository(P0) | State |
+| SessionViewModel | UI/Domain Facade | 設定CRUD・開始/停止中継・状態保持 | 1.*,2.3,3.*,4.*,5.4 | SettingsRepository(P0), SessionUseCase(P0) | Service, State |
+| GuidanceEngine | Domain | 振動/呼吸ガイド実行とイベント通知 | 1.3,2.1-2.5,3.2 | HapticsAdapter(P0) | Service |
+| SessionUseCase | Domain | 開始/停止/記録保存のオーケストレーション | 1.3,2.1-2.4,3.2,3.3,4.*,5.4 | GuidanceEngine(P0), SettingsRepository(P0), SessionRepository(P0) | Service |
+| SettingsRepository | Data | 設定の保存/取得 | 1.1-1.6,3.1 | SQLite/Memory(P0) | Service, State |
+| SessionRepository | Data | セッション記録保存/取得 | 4.*,5.3 | SQLite/Memory(P0) | Service, State |
+| HapticsAdapter | Platform | 振動実行/停止と結果返却 | 1.3,2.1,2.2,2.5 | expo-haptics(P0) | Service |
+| BreathVisualGuide | UI | フェーズに同期した視覚ガイド | 2.1,2.5 | SessionViewModel(P1) | State |
 
-### SettingsRepository (Data)
-| Field | Detail |
-|-------|--------|
-| Intent | 振動BPM/時間/強度と、呼吸フェーズ秒数・サイクル回数の保存と取得 |
-| Requirements | 1.1,1.2,1.4,1.5,3.1 |
-| Contracts | Service, State |
-| Outbound | expo-sqlite (P0) |
+### TabLayout (State)
+- **Intent**: タブバーを「Session」「Logs」の2つに限定し、初期表示をSessionにする。
+- **Dependencies**: SessionScreen(P0), LogsScreen(P0)
+- **Contracts**: State ☑
+- **Implementation Notes**
+  - `app/(tabs)/_layout.tsx` で `Tabs.Screen` を `name="session"` と `name="logs"` の2つだけに設定し、`initialRouteName="session"` を明示。`detachInactiveScreens={false}` `lazy={false}` を指定してタブ切替時のアンマウントを避ける。
+  - 既存の `index.tsx` / `explore.tsx` は削除し、新規に `app/(tabs)/session.tsx` で `SessionScreen` を、`app/(tabs)/logs.tsx` で `LogsScreen` をラップする薄いコンポーネントを配置する。
+  - タブアイコン・ラベル: Session=「セッション」(heartbeat系アイコン)、Logs=「履歴」(list系アイコン)。アクセシビリティラベルを各タブに付与。
 
-**Service Interface**
-```ts
-type BreathPattern =
-  | { type: 'two-phase'; inhaleSec: number; exhaleSec: number; cycles: number | null }
-  | { type: 'three-phase'; inhaleSec: number; holdSec: number; exhaleSec: number; cycles: number | null };
-
-interface SettingsValues {
-  bpm: number; // 40-90
-  durationSec: number | null; // 60-300 または null(∞), 手動停止は常に可
-  intensity: 'low'|'medium'|'strong'; // 共通
-  breath: BreathPattern;
-}
-interface SettingsRepository {
-  get(): Promise<SettingsValues>;
-  save(values: SettingsValues): Promise<void>;
-}
-```
-
-### HapticsAdapter (Platform)
-| Field | Detail |
-|-------|--------|
-| Intent | 振動パターン実行・停止、失敗理由の通知（呼吸/振動両モードで使用） |
-| Requirements | 1.3,2.2,2.5 |
-| Contracts | Service |
-
-**Service Interface**
-```ts
-type HapticsResult = { ok: true } | { ok: false; error: 'permission'|'disabled'|'unknown' };
-interface HapticsAdapter {
-  play(pattern: number[], amplitudes?: number[]): Promise<HapticsResult>;
-  stop(): Promise<HapticsResult>;
+### SessionViewModel (Service/State)
+- **Intent**: 設定CRUD、開始/停止/完了の橋渡し、タブ切替でも設定状態を保持。
+- **Responsibilities & Constraints**
+  - SettingsRepositoryから初期値取得しローカル状態を保持。タブ切替で再マウントしても状態を失わないよう、VMをシングルトン（例: `sessionViewModel.ts` でインスタンスをexport）とし、`SessionScreen` はそれを参照する。加えて TabLayout 側のアンマウント回避設定で二重にリスクを減らす。
+  - start/stop/completeをSessionUseCaseに委譲し、結果をUIへ反映。
+- **Dependencies**: SettingsRepository(P0), SessionUseCase(P0)
+- **Contracts**: Service ☑, State ☑
+```typescript
+interface SessionViewModel {
+  load(): Promise<SettingsValues>;
+  update(values: Partial<SettingsValues>): void;
+  start(mode: 'VIBRATION'|'BREATH'): Promise<Result>;
+  stop(): Promise<Result>;
+  complete(input: CompleteInput): Promise<Result>;
+  getState(): { settings: SettingsValues; mode: 'VIBRATION'|'BREATH'; visualEnabled: boolean };
 }
 ```
-- Validation: pattern長とamplitudes長一致。呼吸モードではフェーズ開始ごとに単発パターン（例: [0]）を使用し、空配列も許容。
-- Fallback: 失敗時はエラーを返し、上位で視覚のみ継続。
+- **Notes**: タブ切替で状態保持するため、VMインスタンスをタブの外側で提供（context/singleton）。visualEnabledで視覚ガイドON/OFFを管理。
 
-### GuidanceEngine (Domain)
-| Field | Detail |
-|-------|--------|
-| Intent | モードに応じてBPM間隔の単発振動、または呼吸フェーズパターンを進行し、視覚同期ステップを通知 |
-| Requirements | 2.1,2.2,2.3,2.4,2.5,3.2 |
-| Contracts | Service |
-
-**Service Interface**
-```ts
+### GuidanceEngine (Service)
+- **Intent**: 振動/呼吸ガイドのタイミング管理とリスナー通知。
+- **Responsibilities**: BPM間隔で単発振動（±5%目標）、呼吸フェーズ進行（inhale/hold/exhale, cycles）、onStep/onComplete/onStop通知、単一アクティブ。
+- **Contracts**: Service ☑
+```typescript
 interface GuidanceConfig {
   mode: 'VIBRATION' | 'BREATH';
-  bpm?: number; // 振動モードで使用
-  vibrationPattern?: number[]; // 振動モード: 通常 [0]
-  durationSec: number; // 振動モードの時間 or 呼吸モードの上限時間
+  bpm?: number;
+  vibrationPattern?: number[];
+  durationSec: number;
   visualEnabled: boolean;
-  breath?: {
-    inhaleMs: number;
-    holdMs?: number;
-    exhaleMs: number;
-    cycles: number | null; // nullなら∞（手動停止 or durationSecで停止）
-    haptics?: { pattern: number[] }; // フェーズ開始で出す単発振動
-  };
+  breath?: { inhaleMs: number; holdMs?: number; exhaleMs: number; cycles: number|null; haptics?: { pattern: number[] } };
 }
 interface GuidanceListener {
-  onStep?: (cycle: number, elapsedSec: number) => void;
+  onStep?: (step: { cycle: number; elapsedSec: number; phase?: 'INHALE'|'HOLD'|'EXHALE'|'PULSE' }) => void;
   onComplete?: () => void;
   onStop?: () => void;
 }
 interface GuidanceEngine {
-  startGuidance(config: GuidanceConfig, listener?: GuidanceListener): Promise<{ ok: boolean; error?: string }>;
-  stopGuidance(): Promise<{ ok: boolean }>;
+  startGuidance(config: GuidanceConfig, listener?: GuidanceListener): Promise<Result>;
+  stopGuidance(): Promise<Result>;
   isActive(): boolean;
 }
 ```
-- Behavior: 振動モードは60000/bpm間隔、呼吸モードはフェーズ秒数に従って inhale→hold→exhale をcycles回繰り返す。cyclesが∞ならdurationSec上限または手動停止で終了。
-- Behavior補足: 呼吸モードでは各フェーズ開始時にhaptics.pattern（通常単発[0]）を1回実行し、視覚ガイドをフェーズに同期させる。BPM設定は呼吸モードに影響しない。
-- Invariants: 単一アクティブ。停止時にタイマー全解除。
+- **Preconditions**: durationSec > 0, VIBRATION時 bpm 40-90, 呼吸フェーズ秒数は正数。
+- **Implementation Notes**: 計画時刻を累積しドリフト補正。cycles=null は durationSec で上限。Webでは play 失敗でも {ok:true} を返し継続。
 
-### SessionUseCase (Domain)
-| Field | Detail |
-|-------|--------|
-| Intent | 設定読込→Guidance開始/停止、終了時の記録保存（振動/呼吸を切替） |
-| Requirements | 2.1-2.4,3.2,3.3,4.1-4.3 |
-| Contracts | Service |
-
-**Service Interface**
-```ts
-interface StartInput { mode: 'VIBRATION'|'BREATH'; }
-interface CompleteInput {
-  preHr?: number;
-  postHr?: number;
-  guideType: 'VIBRATION'|'BREATH';
-  comfort?: number;
-  improvement?: number;
-  breath?: BreathPattern;
-  bpm?: number;
-}
+### SessionUseCase (Service)
+- **Intent**: 設定取得→Guidance開始/停止→完了データ保存のオーケストレーション。
+- **Contracts**: Service ☑
+```typescript
+type StartInput = { mode: 'VIBRATION'|'BREATH' };
+type CompleteInput = {
+  preHr?: number; postHr?: number; guideType: 'VIBRATION'|'BREATH';
+  comfort?: number; improvement?: number; breath?: BreathPattern; bpm?: number;
+};
 interface SessionUseCase {
-  start(input: StartInput): Promise<{ ok: boolean; error?: string }>;
-  stop(): Promise<void>;
-  complete(input: CompleteInput): Promise<void>;
+  start(input: StartInput): Promise<Result>;
+  stop(): Promise<Result>;
+  complete(input: CompleteInput): Promise<Result>;
 }
 ```
-- Behavior: startでSettingsを取得しGuidanceEngineを起動。デフォルトmodeは VIBRATION。BREATHでは呼吸フェーズ秒数とサイクルで進行し振動は出さない。durationSecは振動モードの上限、呼吸モードはcyclesで終了、∞の場合はdurationSec上限または手動停止。
-- 呼吸モードの終了優先順位: cyclesが0より大きい場合は指定回数完了で終了。cycles=null(∞) の場合は手動停止が最優先、次いでdurationSec上限で終了。
-- Stop条件: durationSec経過または手動停止の早い方（呼吸モードはcycles完了でも終了）。停止時はGuidanceEngine.stop()を呼び、状態を終了に更新。
-- On complete: guideType、呼吸パターン、BPM、pre/post心拍、comfort、improvementをSessionRepositoryへ保存。
+- **Invariants**: startは非アクティブ時のみ、completeは停止後のみ。breath cycles null=∞ は手動停止またはdurationで終了。
+- **Notes**: stop時はGuidanceEngine.stopをawait。保存失敗はResultで返しUIリトライへ。
 
-### SessionRepository (Data)
-| Field | Detail |
-|-------|--------|
-| Intent | セッション記録の保存/取得 |
-| Requirements | 4.1-4.6 |
-| Contracts | Service, State |
+### SettingsRepository (Service/State)
+- **Intent**: BPM/時間/強度・呼吸パターンの保存/取得。
+- **Contracts**:
+```typescript
+interface SettingsRepository {
+  get(): Promise<SettingsValues>;
+  save(values: SettingsValues): Promise<Result>;
+}
+```
+- **Validation**: bpm 40-90, durationSec 60-300 or null, cycles 正数 or null, intensity enum。
 
-**Data Model (Logical / SQLite)**
-- `session_records`(id PK, startedAt, endedAt, bpm INT, guideType TEXT, preHr INT?, postHr INT?, comfort INT?, improvement INT?, breathConfig TEXT?, notes TEXT?)
-  - breathConfigはJSON文字列で `{type:'two-phase'|'three-phase', inhaleSec, holdSec?, exhaleSec, cycles}` を保存
-- Index: startedAt DESC
+### SessionRepository (Service/State)
+- **Intent**: セッション記録の保存と取得。
+- **Contracts**:
+```typescript
+type SessionRecord = {
+  id: string;
+  startedAt: string;
+  endedAt: string;
+  guideType: 'VIBRATION'|'BREATH';
+  bpm?: number;
+  preHr?: number;
+  postHr?: number;
+  comfort?: number;
+  improvement?: number;
+  breathConfig?: BreathPattern;
+};
+interface SessionRepository {
+  save(record: SessionRecord): Promise<Result>;
+  list(order?: 'asc'|'desc'): Promise<SessionRecord[]>; // default: 'desc' (startedAt)
+  get(id: string): Promise<SessionRecord | null>;
+}
+```
+- **Notes**: startedAt DESCインデックス。breathConfigはJSON文字列で永続化。
 
-### ViewModels / UI
-- **SessionViewModel/Screen**: モード選択（振動/呼吸）、設定変更（振動: BPM/時間/強度のみ表示・編集、呼吸: 強度＋フェーズ秒数＋サイクルのみ表示・編集）、プレビュー、開始/停止、状態表示、視覚ガイド切替（Req 1.1-1.5,2.1-2.4,3.1-3.3）。
-- **BreathVisualGuide**: 振動/呼吸周期に同期した円アニメ（呼吸は膨張/縮小、振動は収縮パルス）（Req 2.3）。
-- **LogsViewModel/Screens**: 履歴一覧/詳細（Req 4.1-4.6）。
+### Tab/Logs UI Components (State)
+- **LogsScreen**: `SessionRepository.list('desc')` を呼び startedAt 降順で表示（UI側で追加ソートはしない）。タップで詳細へ（既存ログUIを流用/拡張）。
+- **State保持**: タブ切替時に再マウントで状態が失われないよう、tabs 配下コンポーネントのアンマウントを避けるか、VM/Storeに集約。
 
 ## Data Models
 
 ### Domain Model
-- `GuidanceSettings`: bpm, durationSec, intensity, breath (BreathPattern)。
-- `SessionRecord`: id, startedAt, endedAt, bpm?, guideType, preHr?, postHr?, comfort?, improvement?, breathConfig?, notes?.
+- GuidanceSettings: bpm, durationSec, intensity, breath(BreathPattern)。
+- SessionRecord: id, startedAt, endedAt, guideType, bpm?, breathConfig?, pre/postHr?, comfort?, improvement?.
+- Invariants: cycles null=∞、durationSec null=∞（手動停止必須）。
 
 ### Logical Data Model
-- テーブル: `settings`(id=1, bpm INT, durationSec INT, intensity TEXT, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
-- テーブル: `session_records`(上記定義)
-- 一貫性: `breathCycles` がNULLの場合は∞を表す。`holdSec`はthree-phaseのみ使用。
-- マイグレーション方針: 既存データ移行は行わず、初回起動時にテーブルを新規作成（既存が不整合ならリセットしてデフォルト値を再挿入）。
-
-## Validation & Error Handling
-
-- 入力バリデーション
-- BPM: 40〜90、整数
-  - durationSec: 60〜300、整数 または null(∞)
-  - heart rate (pre/post): 30〜220、整数、未入力可
-  - intensity: `low|medium|strong`
-  - comfort / improvement: 1〜5 段階、未入力可
-  - breath cycles: 正数 or NULL(∞)
-- 完了入力の扱い
-  - 必須: guideType（振動/呼吸）、終了理由（時間満了/手動停止）
-  - 任意: preHr, postHr, comfort, improvement, breathPreset, bpm
-- エラー処理
-  - Guidance/Haptics失敗: 視覚ガイドのみ継続し警告トーストを表示、ログ残す。
-  - DB保存失敗: 1回リトライ。失敗時はユーザーに「記録保存に失敗」トーストと再試行ボタンを提示。
-  - 入力エラー: UI側でバリデーション表示し送信をブロック（例: 範囲外値は赤枠＋メッセージ）。
-  - 非Webプラットフォーム依存: Webでは振動をスキップしエラーにしない。
+- `settings`(id=1, bpm INT, durationSec INT NULL, intensity TEXT, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
+- `session_records`(id PK, startedAt TEXT, endedAt TEXT, guideType TEXT, bpm INT NULL, preHr INT NULL, postHr INT NULL, comfort INT NULL, improvement INT NULL, breathConfig TEXT NULL, notes TEXT NULL)
+- Index: startedAt DESC。
 
 ## Error Handling
-- 振動不可（permission/disabled）: GuidanceEngineがエラーを返し、UIは視覚ガイドのみ継続＋警告表示。
-- タイマー遅延: GuidanceEngineが補正するが±5%超は警告ログ。長時間利用は非推奨。
-- DB失敗: リトライ1回、失敗時はユーザーへ保存不可を通知（セッション完了は維持）。
+- ユーザーエラー: 入力範囲外(BPM/時間/cycles/heart rate)はUIバリデーションでブロック。
+- システムエラー: Haptics permission/disabled は Resultで返し視覚のみ継続。DB失敗は1回リトライし失敗時に再試行案内。
+- ビジネスロジック: start中の重複startは {ok:false, error:'already_running'}。
+- 監視: ガイド開始/停止、保存失敗をログ出力。
 
 ## Testing Strategy
-- Unit: GuidanceEngine（BPM進行、呼吸フェーズ進行、cycles終了、停止）、HapticsAdapter入力検証、SettingsRepository保存/復元、SessionUseCase開始/停止/記録保存。
-- Integration: モード別開始（振動/呼吸）→時間/手動停止→記録保存→履歴表示、振動不可時の視覚継続、Webプレビュー無振動で落ちないこと。
-- UI: 設定パネルのモード別出し分け、プレビュー（振動パルス/呼吸膨縮）、開始/停止の状態遷移。
-
-## Performance & Scalability
-- タイマー精度: ±5%以内を目標。呼吸フェーズは数秒単位で短期セッションを前提にする。
-- DB規模: 端末ローカルのみ、startedAt DESC の単一インデックスで十分。
-
-## Security Considerations
-- データは端末ローカルのみ保存。ネットワーク送信なし。
-- 心拍入力は任意でNULL許容。個人識別情報は保持しない。
+- Unit: GuidanceEngine（BPMドリフト補正、呼吸フェーズ進行、cycles∞/有限、停止）、HapticsAdapter入力検証、SettingsRepository境界値、SessionUseCase start/stop/complete、SessionViewModel状態保持（タブ切替シミュレーション）。
+- Integration/UI: セッションタブ初期表示→設定編集→開始/停止→記録保存、タブ切替で設定保持、履歴タブで一覧即表示、振動不可時に視覚のみ継続。
+- E2E: Android/Expo Go でセッション開始→停止→記録入力→履歴確認。Webで振動不可でも落ちないこと。
