@@ -1,11 +1,11 @@
 # Design Document
 
 ## Overview
-本機能は不安や動揺で鼓動が高まったときに、ユーザーが指定したBPMリズムで「1拍1振動」を即時開始し呼吸ペースを整えることを目的とする。呼吸ガイドは2フェーズ（吸う/吐く）または3フェーズ（吸う/止める/吐く）の秒数とサイクル回数を設定でき、振動モードと切り替えて利用する。心拍は手入力のみで記録し、履歴を端末ローカルに保存・参照する。
+本機能は不安や動揺で鼓動が高まったときに、ユーザーが状況に応じて「振動ガイド（BPMベース）」または「呼吸ガイド（フェーズ秒数ベース）」を選択し、振動と視覚の両方でペースを得て落ち着きを取り戻すことを目的とする。呼吸ガイドは2フェーズ（吸う/吐く）または3フェーズ（吸う/止める/吐く）の秒数とサイクル回数を設定できる。心拍は手入力のみで記録し、履歴を端末ローカルに保存・参照する。
 
 ### Goals
-- 振動リズム（BPM）を設定・保存し、±5%以内の間隔で「1拍1振動」を提供する。
-- 呼吸ガイドはフェーズ秒数（2/3フェーズ）とサイクル回数を設定し、振動モードと切替可能にする。
+- 振動ガイド（BPM）を設定・保存し、±5%以内の間隔で「1拍1振動」を提供し視覚パルスと同期する。
+- 呼吸ガイドはフェーズ秒数（2/3フェーズ）とサイクル回数を設定し、フェーズ開始ごとに振動を出しつつ視覚ガイドを同期させ、振動ガイドと独立に切替可能にする。
 - セッション前後の心拍・主観評価・ガイド種別をローカルに記録・閲覧できる。
 
 ### Non-Goals
@@ -117,7 +117,7 @@ sequenceDiagram
 | GuidanceEngine | Domain | モードに応じて振動パルスまたは呼吸フェーズ進行を管理し、視覚同期を通知 | 2.1-2.4,3.2 | HapticsAdapter (P0) | Service |
 | SessionUseCase | Domain | 設定読込→Guidance開始/停止、終了時の記録保存（振動/呼吸を切替） | 2.1-2.4,3.2,3.3,4.1-4.3 | GuidanceEngine, SessionRepository, SettingsRepository (P0) | Service |
 | SessionViewModel | Presentation | 設定CRUD/プレビュー＋開始/停止/進行表示（モード別UI切替） | 1.1-1.5,2.1-2.4,3.1-3.3 | SettingsRepository, HapticsAdapter, SessionUseCase (P0) | State |
-| BreathVisualGuide | Presentation | 呼吸/振動周期に同期した円アニメ | 2.3,3.2 | SessionViewModel (P1) | State |
+| BreathVisualGuide | Presentation | 呼吸/振動周期に同期した円アニメ | 2.3,2.5,3.2 | SessionViewModel (P1) | State |
 | LogsViewModel | Presentation | 履歴一覧/詳細取得 | 4.6 | SessionRepository (P0) | State |
 
 ### SettingsRepository (Data)
@@ -136,7 +136,7 @@ type BreathPattern =
 
 interface SettingsValues {
   bpm: number; // 40-90
-  durationSec: number; // 60-300, 手動停止は常に可
+  durationSec: number | null; // 60-300 または null(∞), 手動停止は常に可
   intensity: 'low'|'medium'|'strong'; // 共通
   breath: BreathPattern;
 }
@@ -149,8 +149,8 @@ interface SettingsRepository {
 ### HapticsAdapter (Platform)
 | Field | Detail |
 |-------|--------|
-| Intent | 振動パターン実行・停止、失敗理由の通知 |
-| Requirements | 1.3,2.2 |
+| Intent | 振動パターン実行・停止、失敗理由の通知（呼吸/振動両モードで使用） |
+| Requirements | 1.3,2.2,2.5 |
 | Contracts | Service |
 
 **Service Interface**
@@ -161,14 +161,14 @@ interface HapticsAdapter {
   stop(): Promise<HapticsResult>;
 }
 ```
-- Validation: pattern長とamplitudes長一致。呼吸モードでは振動を出さないため空配列を許容。
+- Validation: pattern長とamplitudes長一致。呼吸モードではフェーズ開始ごとに単発パターン（例: [0]）を使用し、空配列も許容。
 - Fallback: 失敗時はエラーを返し、上位で視覚のみ継続。
 
 ### GuidanceEngine (Domain)
 | Field | Detail |
 |-------|--------|
 | Intent | モードに応じてBPM間隔の単発振動、または呼吸フェーズパターンを進行し、視覚同期ステップを通知 |
-| Requirements | 2.1,2.2,2.3,2.4,3.2 |
+| Requirements | 2.1,2.2,2.3,2.4,2.5,3.2 |
 | Contracts | Service |
 
 **Service Interface**
@@ -184,6 +184,7 @@ interface GuidanceConfig {
     holdMs?: number;
     exhaleMs: number;
     cycles: number | null; // nullなら∞（手動停止 or durationSecで停止）
+    haptics?: { pattern: number[] }; // フェーズ開始で出す単発振動
   };
 }
 interface GuidanceListener {
@@ -198,6 +199,7 @@ interface GuidanceEngine {
 }
 ```
 - Behavior: 振動モードは60000/bpm間隔、呼吸モードはフェーズ秒数に従って inhale→hold→exhale をcycles回繰り返す。cyclesが∞ならdurationSec上限または手動停止で終了。
+- Behavior補足: 呼吸モードでは各フェーズ開始時にhaptics.pattern（通常単発[0]）を1回実行し、視覚ガイドをフェーズに同期させる。BPM設定は呼吸モードに影響しない。
 - Invariants: 単一アクティブ。停止時にタイマー全解除。
 
 ### SessionUseCase (Domain)
@@ -262,8 +264,8 @@ interface SessionUseCase {
 ## Validation & Error Handling
 
 - 入力バリデーション
-  - BPM: 40〜90、整数
-  - durationSec: 60〜300、整数
+- BPM: 40〜90、整数
+  - durationSec: 60〜300、整数 または null(∞)
   - heart rate (pre/post): 30〜220、整数、未入力可
   - intensity: `low|medium|strong`
   - comfort / improvement: 1〜5 段階、未入力可
