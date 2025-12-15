@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { VisualGuide, GuidePhase } from './visualGuide';
 import { SettingsRepository, SettingsValues, VibrationIntensity, BreathPattern } from '../../src/settings/types';
 import { SqliteSettingsRepository } from '../../src/settings/sqliteRepository';
 
@@ -24,6 +26,8 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<SettingsValues | null>(null);
+  const [preview, setPreview] = useState<'none' | 'vibration' | 'breath'>('none');
+  const [phase, setPhase] = useState<GuidePhase>('PULSE');
 
   useEffect(() => {
     let mounted = true;
@@ -78,6 +82,35 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
     setSaving(true);
     await repo.save(values);
     setSaving(false);
+  };
+
+  const runVibrationPreview = async () => {
+    if (!values) return;
+    setPreview('vibration');
+    setPhase('PULSE');
+    const style = values.intensity === 'strong' ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium;
+    await Haptics.impactAsync(style).catch(() => {});
+    setTimeout(() => setPreview((p) => (p === 'vibration' ? 'none' : p)), 800);
+  };
+
+  const runBreathPreview = async () => {
+    if (!values) return;
+    setPreview('breath');
+    // 吸う→止める→吐くを簡易に再現
+    const phases: GuidePhase[] = values.breath.type === 'three-phase' ? ['INHALE', 'HOLD', 'EXHALE'] : ['INHALE', 'EXHALE'];
+    let idx = 0;
+    const tick = async () => {
+      if (idx >= phases.length) {
+        setPreview('none');
+        return;
+      }
+      const current = phases[idx];
+      setPhase(current);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      idx += 1;
+      setTimeout(tick, 400);
+    };
+    tick();
   };
 
   if (loading || !values) {
@@ -139,6 +172,10 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
 
         <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
           <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
+        </Pressable>
+
+        <Pressable style={[styles.previewButton, preview === 'vibration' && styles.previewActive]} onPress={runVibrationPreview}>
+          <Text style={styles.previewLabel}>振動プレビュー</Text>
         </Pressable>
       </View>
 
@@ -207,6 +244,10 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
         <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
           <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
         </Pressable>
+
+        <Pressable style={[styles.previewButton, preview === 'breath' && styles.previewActive]} onPress={runBreathPreview}>
+          <Text style={styles.previewLabel}>呼吸プレビュー</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -230,4 +271,7 @@ const styles = StyleSheet.create({
   saveButton: { marginTop: 12, paddingVertical: 12, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center' },
   saveButtonDisabled: { opacity: 0.6 },
   saveLabel: { color: '#fff', fontWeight: '700' },
+  previewButton: { marginTop: 10, paddingVertical: 10, borderRadius: 10, backgroundColor: '#e8f1ff', alignItems: 'center', borderWidth: 1, borderColor: '#2563eb' },
+  previewActive: { backgroundColor: '#d6e7ff' },
+  previewLabel: { color: '#1746b4', fontWeight: '700' },
 });
