@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import SessionScreen from '../session';
 import { GuidanceConfig, GuidanceListener, GuidanceEngine } from '../../src/guidance/types';
 import { SettingsRepository, SettingsValues } from '../../src/settings/types';
@@ -38,7 +38,7 @@ const settings: SettingsValues = {
   bpm: 60,
   durationSec: 180,
   intensity: 'medium',
-  breathPreset: '4-6-4',
+  breath: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: null },
 };
 
 const createRepo = (): SettingsRepository => ({
@@ -73,7 +73,7 @@ describe('SessionScreen', () => {
     fireEvent.press(getByText('開始'));
 
     await findByText('状態: 進行中...');
-    expect(engine.lastConfig?.visualEnabled).toBe(false);
+    expect(engine.lastConfig?.bpm).toBe(60);
   });
 
   it('停止でstopGuidanceが呼ばれ停止メッセージを表示する', async () => {
@@ -101,7 +101,9 @@ describe('SessionScreen', () => {
     fireEvent.press(getByText('開始'));
     await findByText('状態: 進行中...');
 
-    engine.emitStep(1, 1);
+    await act(async () => {
+      engine.emitStep(1, 1);
+    });
 
     await findByText('サイクル 1');
   });

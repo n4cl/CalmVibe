@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SettingsRepository, SettingsValues, defaultSettings, VibrationIntensity, BreathPreset } from './types';
+import { SettingsRepository, SettingsValues, defaultSettings, VibrationIntensity, BreathPattern } from './types';
 
 export type SettingsViewModel = {
   values: SettingsValues;
@@ -8,7 +8,7 @@ export type SettingsViewModel = {
   setBpm: (bpm: number) => void;
   setDuration: (sec: number) => void;
   setIntensity: (intensity: VibrationIntensity) => void;
-  setBreathPreset: (preset: BreathPreset) => void;
+  setBreath: (pattern: BreathPattern) => void;
   save: () => Promise<void>;
   reload: () => Promise<void>;
 };
@@ -39,10 +39,10 @@ export const useSettingsViewModel = (repo: SettingsRepository): SettingsViewMode
   const setBpm = (bpm: number) => setValues((v) => ({ ...v, bpm }));
   const setDuration = (sec: number) => setValues((v) => ({ ...v, durationSec: sec }));
   const setIntensity = (intensity: VibrationIntensity) => setValues((v) => ({ ...v, intensity }));
-  const setBreathPreset = (preset: BreathPreset) => setValues((v) => ({ ...v, breathPreset: preset }));
+  const setBreath = (pattern: BreathPattern) => setValues((v) => ({ ...v, breath: pattern }));
 
   return useMemo(
-    () => ({ values, loading, saving, setBpm, setDuration, setIntensity, setBreathPreset, save, reload: load }),
+    () => ({ values, loading, saving, setBpm, setDuration, setIntensity, setBreath, save, reload: load }),
     [values, loading, saving]
   );
 };

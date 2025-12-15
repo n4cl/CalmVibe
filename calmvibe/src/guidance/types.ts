@@ -5,7 +5,9 @@ export type GuidanceConfig = {
   durationSec: number;
   vibrationPattern: number[]; // ms 単位（1拍内での複数振動、通常は単発[0]）
   visualEnabled: boolean;
-  breathPreset?: '4-6-4' | '5-5-5' | '4-4-4';
+  breath?:
+    | { type: 'two-phase'; inhaleSec: number; exhaleSec: number; cycles: number | null }
+    | { type: 'three-phase'; inhaleSec: number; holdSec: number; exhaleSec: number; cycles: number | null };
 };
 
 export type GuidanceStep = {

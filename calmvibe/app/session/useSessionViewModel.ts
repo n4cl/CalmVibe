@@ -39,8 +39,8 @@ export const useSessionViewModel = ({
         bpm: settings.bpm,
         durationSec: settings.durationSec,
         vibrationPattern: pattern,
-        visualEnabled: mode !== 'VIBRATION',
-        breathPreset: settings.breathPreset,
+        visualEnabled: true,
+        breath: mode === 'BREATH' ? settings.breath : undefined,
       },
       {
         onStep: ({ cycle }) => {

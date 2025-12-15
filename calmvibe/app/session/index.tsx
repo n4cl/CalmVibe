@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SqliteSettingsRepository } from '../../src/settings/sqliteRepository';
-import { SettingsRepository } from '../../src/settings/types';
+import { SettingsRepository, BreathPattern } from '../../src/settings/types';
 import { NativeHapticsAdapter, SimpleGuidanceEngine } from '../../src/guidance';
 import { GuidanceEngine, GuidanceMode } from '../../src/guidance/types';
 import { useSessionViewModel } from './useSessionViewModel';
@@ -77,9 +77,20 @@ export default function SessionScreen({ guidanceEngine, settingsRepo }: SessionS
     { label: '強', value: 'strong' },
   ];
 
-  const breathOptions: Array<'4-6-4' | '5-5-5' | '4-4-4'> = ['4-6-4', '5-5-5', '4-4-4'];
+  const breathOptions: Array<{ label: string; pattern: BreathPattern }> = [
+    { label: '4-6-4 (∞)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: null } },
+    { label: '5-5-5 (∞)', pattern: { type: 'three-phase', inhaleSec: 5, holdSec: 5, exhaleSec: 5, cycles: null } },
+    { label: '4-4 (∞)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: null } },
+  ];
   const labelForIntensity = (i: typeof intensityOptions[number]['value']) =>
     intensityOptions.find((o) => o.value === i)?.label ?? '中';
+
+  const labelForBreath = (b: BreathPattern) => {
+    if (b.type === 'three-phase') {
+      return `吸${b.inhaleSec}-止${b.holdSec}-吐${b.exhaleSec} (${b.cycles ? `${b.cycles}回` : '∞'})`;
+    }
+    return `吸${b.inhaleSec}-吐${b.exhaleSec} (${b.cycles ? `${b.cycles}回` : '∞'})`;
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -129,21 +140,29 @@ export default function SessionScreen({ guidanceEngine, settingsRepo }: SessionS
 
         <Text style={styles.sectionSubTitle}>呼吸プリセット</Text>
         <View style={styles.chipRow}>
-          {breathOptions.map((preset) => (
+          {breathOptions.map(({ label, pattern }) => (
             <Pressable
-              key={preset}
-              onPress={() => settingsVm.setBreathPreset(preset)}
-              style={[styles.chip, settingsVm.values.breathPreset === preset && styles.chipActive]}
-              accessibilityState={{ selected: settingsVm.values.breathPreset === preset }}
+              key={label}
+              onPress={() => settingsVm.setBreath(pattern)}
+              style={[
+                styles.chip,
+                settingsVm.values.breath.type === pattern.type &&
+                  settingsVm.values.breath.inhaleSec === pattern.inhaleSec &&
+                  settingsVm.values.breath.exhaleSec === pattern.exhaleSec &&
+                  ('holdSec' in pattern ? settingsVm.values.breath.holdSec === pattern.holdSec : settingsVm.values.breath.type === 'two-phase') &&
+                  settingsVm.values.breath.cycles === pattern.cycles &&
+                  styles.chipActive,
+              ]}
+              accessibilityState={{
+                selected:
+                  settingsVm.values.breath.type === pattern.type &&
+                  settingsVm.values.breath.inhaleSec === pattern.inhaleSec &&
+                  settingsVm.values.breath.exhaleSec === pattern.exhaleSec &&
+                  ('holdSec' in pattern ? settingsVm.values.breath.holdSec === pattern.holdSec : settingsVm.values.breath.type === 'two-phase') &&
+                  settingsVm.values.breath.cycles === pattern.cycles,
+              }}
             >
-              <Text
-                style={[
-                  styles.chipLabel,
-                  settingsVm.values.breathPreset === preset && styles.chipLabelActive,
-                ]}
-              >
-                {preset}
-              </Text>
+              <Text style={[styles.chipLabel, styles.chipLabelActive]}>{label}</Text>
             </Pressable>
           ))}
         </View>
@@ -171,7 +190,7 @@ export default function SessionScreen({ guidanceEngine, settingsRepo }: SessionS
           <Text style={styles.summaryText}>現在のBPM: {settingsVm.values.bpm}</Text>
           <Text style={styles.summaryText}>現在の時間: {settingsVm.values.durationSec}秒</Text>
           <Text style={styles.summaryText}>現在の強度: {labelForIntensity(settingsVm.values.intensity)}</Text>
-          <Text style={styles.summaryText}>呼吸プリセット: {settingsVm.values.breathPreset}</Text>
+          <Text style={styles.summaryText}>呼吸プリセット: {labelForBreath(settingsVm.values.breath)}</Text>
         </View>
 
         {vm.running && (

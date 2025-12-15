@@ -1,12 +1,14 @@
 export type VibrationIntensity = 'low' | 'medium' | 'strong';
-export type BreathPreset = '4-6-4' | '5-5-5' | '4-4-4';
+
+export type BreathPattern =
+  | { type: 'two-phase'; inhaleSec: number; exhaleSec: number; cycles: number | null }
+  | { type: 'three-phase'; inhaleSec: number; holdSec: number; exhaleSec: number; cycles: number | null };
 
 export type SettingsValues = {
   bpm: number; // 40-90
   durationSec: number; // 60-300
   intensity: VibrationIntensity;
-  useBreath: boolean;
-  breathPreset: BreathPreset;
+  breath: BreathPattern;
 };
 
 export interface SettingsRepository {
@@ -18,6 +20,5 @@ export const defaultSettings: SettingsValues = {
   bpm: 60,
   durationSec: 180,
   intensity: 'medium',
-  useBreath: true,
-  breathPreset: '4-6-4',
+  breath: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: null },
 };

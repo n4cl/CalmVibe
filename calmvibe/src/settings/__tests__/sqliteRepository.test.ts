@@ -16,7 +16,7 @@ describe('SqliteSettingsRepository (memory fallback)', () => {
       bpm: 72,
       durationSec: 240,
       intensity: 'strong',
-      breathPreset: '5-5-5',
+      breath: { type: 'three-phase', inhaleSec: 5, holdSec: 5, exhaleSec: 5, cycles: 10 },
     };
     await repo.save(values);
 
