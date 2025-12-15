@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. 設定永続化とデフォルト復元
-- [ ] 1.1 SQLiteスキーマとメモリフォールバック
+- [x] 1.1 SQLiteスキーマとメモリフォールバック
   - settingsテーブルを設計準拠のBreathPattern構造（bpm, durationSec[60-300|null], intensity, breath.type/inhale/hold/exhale/cycles）で初期化し、Web/テスト時のメモリ実装も整備する。
   - _Requirements: 1.1,1.2,1.4,1.5,3.1_
 - [ ] 1.2 SettingsRepository実装とデフォルト適用
