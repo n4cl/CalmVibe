@@ -16,9 +16,8 @@ const intensityOptions: { label: string; value: VibrationIntensity }[] = [
 ];
 
 const breathPresets: Array<{ label: string; pattern: BreathPattern }> = [
-  { label: '4-6-4 (∞)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: null } },
-  { label: '5-5-5 (∞)', pattern: { type: 'three-phase', inhaleSec: 5, holdSec: 5, exhaleSec: 5, cycles: null } },
-  { label: '4-4 (∞)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: null } },
+  { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
+  { label: '4-4 (5回)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: 5 } },
 ];
 
 export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
@@ -56,6 +55,11 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
     setValues({ ...values, durationSec: next });
   };
 
+  const toggleDurationInfinite = () => {
+    if (!values) return;
+    setValues({ ...values, durationSec: values.durationSec === null ? 180 : null });
+  };
+
   const setIntensity = (i: VibrationIntensity) => {
     if (!values) return;
     setValues({ ...values, intensity: i });
@@ -66,15 +70,26 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
     setValues({ ...values, breath: pattern });
   };
 
-  const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: number) => {
+const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: number) => {
+  if (!values) return;
+  if (values.breath.type === 'two-phase' && key === 'holdSec') return;
+  const next = Math.max(1, (values.breath as any)[key] + delta);
+  if (values.breath.type === 'two-phase') {
+    setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
+  } else {
+    setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
+  }
+};
+
+  const changeCycles = (delta: number | 'inf') => {
     if (!values) return;
-    if (values.breath.type === 'two-phase' && key === 'holdSec') return;
-    const next = Math.max(1, (values.breath as any)[key] + delta);
-    if (values.breath.type === 'two-phase') {
-      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
-    } else {
-      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
+    if (delta === 'inf') {
+      setValues({ ...values, breath: { ...values.breath, cycles: null } });
+      return;
     }
+    const current = values.breath.cycles ?? 0;
+    const next = Math.max(1, current + delta);
+    setValues({ ...values, breath: { ...values.breath, cycles: next } });
   };
 
   const save = async () => {
@@ -129,11 +144,11 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.label}>BPM: {values.bpm}</Text>
-          <Pressable style={styles.button} onPress={() => changeBpm(+1)}>
-            <Text style={styles.buttonLabel}>+BPM</Text>
-          </Pressable>
           <Pressable style={styles.button} onPress={() => changeBpm(-1)}>
             <Text style={styles.buttonLabel}>-BPM</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => changeBpm(+1)}>
+            <Text style={styles.buttonLabel}>+BPM</Text>
           </Pressable>
         </View>
 
@@ -143,14 +158,17 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
           </Text>
           {values.durationSec !== null && (
             <>
-              <Pressable style={styles.button} onPress={() => changeDuration(+30)}>
-                <Text style={styles.buttonLabel}>+時間</Text>
-              </Pressable>
               <Pressable style={styles.button} onPress={() => changeDuration(-30)}>
                 <Text style={styles.buttonLabel}>-時間</Text>
               </Pressable>
+              <Pressable style={styles.button} onPress={() => changeDuration(+30)}>
+                <Text style={styles.buttonLabel}>+時間</Text>
+              </Pressable>
             </>
           )}
+          <Pressable style={styles.button} onPress={toggleDurationInfinite}>
+            <Text style={styles.buttonLabel}>{values.durationSec === null ? '時間ON' : '∞にする'}</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.subTitle}>バイブ強度</Text>
@@ -209,32 +227,60 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
         <Text style={styles.subTitle}>フェーズ秒数</Text>
         <View style={styles.row}>
           <Text style={styles.label}>吸: {values.breath.inhaleSec}s</Text>
-          <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', +1)}>
-            <Text style={styles.buttonLabel}>吸+</Text>
-          </Pressable>
           <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', -1)}>
             <Text style={styles.buttonLabel}>吸-</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', +1)}>
+            <Text style={styles.buttonLabel}>吸+</Text>
           </Pressable>
         </View>
         {values.breath.type === 'three-phase' && (
           <View style={styles.row}>
             <Text style={styles.label}>止: {values.breath.holdSec}s</Text>
-            <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', +1)}>
-              <Text style={styles.buttonLabel}>止+</Text>
-            </Pressable>
             <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', -1)}>
               <Text style={styles.buttonLabel}>止-</Text>
+            </Pressable>
+            <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', +1)}>
+              <Text style={styles.buttonLabel}>止+</Text>
             </Pressable>
           </View>
         )}
         <View style={styles.row}>
           <Text style={styles.label}>吐: {values.breath.exhaleSec}s</Text>
-          <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', +1)}>
-            <Text style={styles.buttonLabel}>吐+</Text>
-          </Pressable>
           <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', -1)}>
             <Text style={styles.buttonLabel}>吐-</Text>
           </Pressable>
+          <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', +1)}>
+            <Text style={styles.buttonLabel}>吐+</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>サイクル: {values.breath.cycles === null ? '∞' : `${values.breath.cycles}回`}</Text>
+          <Pressable style={styles.button} onPress={() => changeCycles(-1)}>
+            <Text style={styles.buttonLabel}>-回</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => changeCycles(+1)}>
+            <Text style={styles.buttonLabel}>+回</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => changeCycles('inf')}>
+            <Text style={styles.buttonLabel}>∞にする</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.subTitle}>バイブ強度（呼吸ガイド）</Text>
+        <View style={styles.row}>
+          {intensityOptions.map((opt) => (
+            <Pressable
+              key={`breath-${opt.value}`}
+              style={[styles.chip, values.intensity === opt.value && styles.chipActive]}
+              onPress={() => setIntensity(opt.value)}
+            >
+              <Text style={[styles.chipLabel, values.intensity === opt.value && styles.chipLabelActive]}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
         <Text style={styles.summary}>

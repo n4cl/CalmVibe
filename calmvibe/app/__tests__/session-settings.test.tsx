@@ -54,7 +54,7 @@ describe('SessionScreen breath settings', () => {
     const repo = createRepo();
     const { findByText } = render(<SessionScreen settingsRepo={repo} />);
 
-    await findByText('呼吸プリセット: 吸4-止6-吐4 (∞)');
+    await findByText('呼吸プリセット: 吸4-止6-吐4 (5回)');
   });
 
   it('プリセットボタンで呼吸パターンが更新され保存できる', async () => {
@@ -63,14 +63,27 @@ describe('SessionScreen breath settings', () => {
 
     await findByText('呼吸設定（独立保存）');
 
-    fireEvent.press(getByText('5-5-5 (∞)'));
-    await findByText('呼吸プリセット: 吸5-止5-吐5 (∞)');
+    fireEvent.press(getByText('4-4 (5回)'));
+    await findByText('呼吸プリセット: 吸4-吐4 (5回)');
 
     fireEvent.press(getByText('吸+'));
     fireEvent.press(getAllByText('保存')[1]);
 
     // 再描画しても変更が保持されること
     const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} />);
-    await findByText2('呼吸プリセット: 吸6-止5-吐5 (∞)');
+    await findByText2('呼吸プリセット: 吸5-吐4 (5回)');
+  });
+
+  it('呼吸カードから強度を変更して保存すると次回も反映される', async () => {
+    const repo = createRepo();
+    const { getAllByText, findByText, unmount } = render(<SessionScreen settingsRepo={repo} />);
+
+    await findByText('呼吸設定（独立保存）');
+    fireEvent.press(getAllByText('強')[1]);
+    fireEvent.press(getAllByText('保存')[1]);
+
+    unmount();
+    const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} />);
+    await findByText2('強度: 強');
   });
 });

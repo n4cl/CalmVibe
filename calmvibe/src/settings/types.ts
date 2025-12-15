@@ -20,5 +20,5 @@ export const defaultSettings: SettingsValues = {
   bpm: 60,
   durationSec: 180,
   intensity: 'medium',
-  breath: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: null },
+  breath: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 },
 };
