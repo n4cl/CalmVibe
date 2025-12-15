@@ -3,7 +3,13 @@ import { Animated, StyleSheet, View } from 'react-native';
 
 export type GuidePhase = 'INHALE' | 'HOLD' | 'EXHALE' | 'PULSE';
 
-export const VisualGuide = ({ phase }: { phase: GuidePhase }) => {
+type Props = {
+  phase: GuidePhase;
+  testID?: string;
+  accessibilityLabel?: string;
+};
+
+export const VisualGuide = ({ phase, testID, accessibilityLabel }: Props) => {
   const scale = useRef(new Animated.Value(1)).current;
   const color = phase === 'INHALE' ? '#b8e1ff' : phase === 'HOLD' ? '#d8def7' : '#cde4ff';
   const target = phase === 'PULSE' ? 1.2 : phase === 'INHALE' ? 1.15 : phase === 'EXHALE' ? 0.95 : 1.0;
@@ -17,7 +23,7 @@ export const VisualGuide = ({ phase }: { phase: GuidePhase }) => {
   }, [target, scale]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={testID} accessibilityLabel={accessibilityLabel ?? phase}>
       <Animated.View style={[styles.circle, { backgroundColor: color, transform: [{ scale }] }]} />
     </View>
   );

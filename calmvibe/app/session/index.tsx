@@ -25,8 +25,10 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<SettingsValues | null>(null);
-  const [preview, setPreview] = useState<'none' | 'vibration' | 'breath'>('none');
+  const [running, setRunning] = useState<'none' | 'vibration' | 'breath'>('none');
   const [phase, setPhase] = useState<GuidePhase>('PULSE');
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const runningRef = React.useRef<'none' | 'vibration' | 'breath'>('none');
 
   useEffect(() => {
     let mounted = true;
@@ -39,6 +41,7 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
     })();
     return () => {
       mounted = false;
+      clearTimer();
     };
   }, [repo]);
 
@@ -99,33 +102,53 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
     setSaving(false);
   };
 
-  const runVibrationPreview = async () => {
-    if (!values) return;
-    setPreview('vibration');
-    setPhase('PULSE');
-    const style = values.intensity === 'strong' ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium;
-    await Haptics.impactAsync(style).catch(() => {});
-    setTimeout(() => setPreview((p) => (p === 'vibration' ? 'none' : p)), 800);
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
-  const runBreathPreview = async () => {
+  const stop = async () => {
+    clearTimer();
+    setRunning('none');
+    runningRef.current = 'none';
+  };
+
+  const startVibration = async () => {
     if (!values) return;
-    setPreview('breath');
-    // 吸う→止める→吐くを簡易に再現
-    const phases: GuidePhase[] = values.breath.type === 'three-phase' ? ['INHALE', 'HOLD', 'EXHALE'] : ['INHALE', 'EXHALE'];
-    let idx = 0;
+    await stop();
+    setRunning('vibration');
+    runningRef.current = 'vibration';
+    setPhase('PULSE');
+    const style = values.intensity === 'strong' ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium;
+    const intervalMs = Math.max(200, Math.round(60000 / values.bpm));
     const tick = async () => {
-      if (idx >= phases.length) {
-        setPreview('none');
-        return;
-      }
-      const current = phases[idx];
+      if (runningRef.current !== 'vibration') return;
+      setPhase('PULSE');
+      await Haptics.impactAsync(style).catch(() => {});
+      timerRef.current = setTimeout(tick, intervalMs);
+    };
+    timerRef.current = setTimeout(tick, 10);
+  };
+
+  const startBreath = async () => {
+    if (!values) return;
+    await stop();
+    setRunning('breath');
+    runningRef.current = 'breath';
+    const phases: GuidePhase[] = values.breath.type === 'three-phase' ? ['INHALE', 'HOLD', 'EXHALE'] : ['INHALE', 'EXHALE'];
+    let idx = 1;
+    setPhase(phases[0]);
+    const tick = async () => {
+      if (runningRef.current !== 'breath') return;
+      const current = phases[idx % phases.length];
       setPhase(current);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       idx += 1;
-      setTimeout(tick, 400);
+      timerRef.current = setTimeout(tick, 400);
     };
-    tick();
+    timerRef.current = setTimeout(tick, 400);
   };
 
   if (loading || !values) {
@@ -139,6 +162,25 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>セッション開始</Text>
+      {running !== 'none' && <VisualGuide phase={phase} testID="visual-guide" accessibilityLabel={phase} />}
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Pressable style={[styles.saveButton, running === 'vibration' && styles.previewActive]} onPress={startVibration}>
+            <Text style={styles.saveLabel}>開始（振動）</Text>
+          </Pressable>
+          <Pressable style={[styles.saveButton, running === 'breath' && styles.previewActive]} onPress={startBreath}>
+            <Text style={styles.saveLabel}>開始（呼吸）</Text>
+          </Pressable>
+          <Pressable style={[styles.saveButton, running === 'none' && styles.saveButtonDisabled]} onPress={stop} disabled={running === 'none'}>
+            <Text style={styles.saveLabel}>停止</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.summary}>
+          状態: {running === 'none' ? '停止中' : running === 'vibration' ? '振動ガイド実行中' : '呼吸ガイド実行中'}
+        </Text>
+      </View>
+
       <Text style={styles.title}>セッション設定（振動ガイド）</Text>
 
       <View style={styles.card}>
@@ -190,10 +232,6 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
 
         <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
           <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
-        </Pressable>
-
-        <Pressable style={[styles.previewButton, preview === 'vibration' && styles.previewActive]} onPress={runVibrationPreview}>
-          <Text style={styles.previewLabel}>振動プレビュー</Text>
         </Pressable>
       </View>
 
@@ -289,10 +327,6 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
 
         <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
           <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
-        </Pressable>
-
-        <Pressable style={[styles.previewButton, preview === 'breath' && styles.previewActive]} onPress={runBreathPreview}>
-          <Text style={styles.previewLabel}>呼吸プレビュー</Text>
         </Pressable>
       </View>
     </ScrollView>

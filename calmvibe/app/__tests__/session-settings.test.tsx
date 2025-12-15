@@ -1,7 +1,12 @@
 import React from 'react';
-import { render, fireEvent, cleanup } from '@testing-library/react-native';
+import { render, fireEvent, cleanup, act } from '@testing-library/react-native';
 import SessionScreen from '../session';
 import { SettingsRepository, SettingsValues, defaultSettings } from '../../src/settings/types';
+
+jest.mock('expo-haptics', () => ({
+  ImpactFeedbackStyle: { Heavy: 'Heavy', Medium: 'Medium' },
+  impactAsync: jest.fn().mockResolvedValue(undefined),
+}));
 
 afterEach(() => {
   cleanup();
@@ -85,5 +90,51 @@ describe('SessionScreen breath settings', () => {
     unmount();
     const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} />);
     await findByText2('強度: 強');
+  });
+});
+
+describe('SessionScreen guide start/stop (no preview)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('振動開始でビジュアルガイドが表示され停止で消える', async () => {
+    const repo = createRepo();
+    const { getByText, queryByTestId, findByText } = render(<SessionScreen settingsRepo={repo} />);
+
+    await findByText('セッション開始');
+    expect(queryByTestId('visual-guide')).toBeNull();
+
+    fireEvent.press(getByText('開始（振動）'));
+    await act(async () => {
+      jest.advanceTimersByTime(10);
+    });
+    expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('PULSE');
+
+    fireEvent.press(getByText('停止'));
+    expect(queryByTestId('visual-guide')).toBeNull();
+  });
+
+  it('呼吸開始で吸→止→吐の順にフェーズが進む', async () => {
+    const repo = createRepo();
+    const { getByText, queryByTestId, findByText } = render(<SessionScreen settingsRepo={repo} />);
+
+    await findByText('セッション開始');
+
+    fireEvent.press(getByText('開始（呼吸）'));
+    await act(async () => jest.advanceTimersByTime(10));
+    expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('INHALE');
+
+    await act(async () => jest.advanceTimersByTime(400));
+    expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('HOLD');
+
+    await act(async () => jest.advanceTimersByTime(400));
+    expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('EXHALE');
+
+    fireEvent.press(getByText('停止'));
+    expect(queryByTestId('visual-guide')).toBeNull();
   });
 });
