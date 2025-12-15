@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { SettingsRepository, SettingsValues, VibrationIntensity } from '../../src/settings/types';
+import { SettingsRepository, SettingsValues, VibrationIntensity, BreathPattern } from '../../src/settings/types';
 import { SqliteSettingsRepository } from '../../src/settings/sqliteRepository';
 
 export type SessionScreenProps = {
@@ -11,6 +11,12 @@ const intensityOptions: { label: string; value: VibrationIntensity }[] = [
   { label: '弱', value: 'low' },
   { label: '中', value: 'medium' },
   { label: '強', value: 'strong' },
+];
+
+const breathPresets: Array<{ label: string; pattern: BreathPattern }> = [
+  { label: '4-6-4 (∞)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: null } },
+  { label: '5-5-5 (∞)', pattern: { type: 'three-phase', inhaleSec: 5, holdSec: 5, exhaleSec: 5, cycles: null } },
+  { label: '4-4 (∞)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: null } },
 ];
 
 export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
@@ -49,6 +55,22 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
   const setIntensity = (i: VibrationIntensity) => {
     if (!values) return;
     setValues({ ...values, intensity: i });
+  };
+
+  const setBreath = (pattern: BreathPattern) => {
+    if (!values) return;
+    setValues({ ...values, breath: pattern });
+  };
+
+  const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: number) => {
+    if (!values) return;
+    if (values.breath.type === 'two-phase' && key === 'holdSec') return;
+    const next = Math.max(1, (values.breath as any)[key] + delta);
+    if (values.breath.type === 'two-phase') {
+      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
+    } else {
+      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
+    }
   };
 
   const save = async () => {
@@ -114,6 +136,73 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
         </View>
 
         <Text style={styles.summary}>強度: {intensityOptions.find((o) => o.value === values.intensity)?.label ?? '中'}</Text>
+
+        <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
+          <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.title}>呼吸設定（独立保存）</Text>
+      <View style={styles.card}>
+        <Text style={styles.subTitle}>プリセット</Text>
+        <View style={styles.row}>
+          {breathPresets.map((preset) => (
+            <Pressable
+              key={preset.label}
+              style={[
+                styles.chip,
+                values.breath.type === preset.pattern.type &&
+                  values.breath.inhaleSec === preset.pattern.inhaleSec &&
+                  ('holdSec' in preset.pattern
+                    ? (values.breath as any).holdSec === (preset.pattern as any).holdSec
+                    : values.breath.type === 'two-phase') &&
+                  values.breath.exhaleSec === preset.pattern.exhaleSec &&
+                  values.breath.cycles === preset.pattern.cycles &&
+                  styles.chipActive,
+              ]}
+              onPress={() => setBreath(preset.pattern)}
+            >
+              <Text style={[styles.chipLabel, values.breath === preset.pattern && styles.chipLabelActive]}>
+                {preset.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.subTitle}>フェーズ秒数</Text>
+        <View style={styles.row}>
+          <Text style={styles.label}>吸: {values.breath.inhaleSec}s</Text>
+          <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', +1)}>
+            <Text style={styles.buttonLabel}>吸+</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', -1)}>
+            <Text style={styles.buttonLabel}>吸-</Text>
+          </Pressable>
+        </View>
+        {values.breath.type === 'three-phase' && (
+          <View style={styles.row}>
+            <Text style={styles.label}>止: {values.breath.holdSec}s</Text>
+            <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', +1)}>
+              <Text style={styles.buttonLabel}>止+</Text>
+            </Pressable>
+            <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', -1)}>
+              <Text style={styles.buttonLabel}>止-</Text>
+            </Pressable>
+          </View>
+        )}
+        <View style={styles.row}>
+          <Text style={styles.label}>吐: {values.breath.exhaleSec}s</Text>
+          <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', +1)}>
+            <Text style={styles.buttonLabel}>吐+</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', -1)}>
+            <Text style={styles.buttonLabel}>吐-</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.summary}>
+          呼吸プリセット: {values.breath.type === 'three-phase' ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}` : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`} ({values.breath.cycles ? `${values.breath.cycles}回` : '∞'})
+        </Text>
 
         <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
           <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>

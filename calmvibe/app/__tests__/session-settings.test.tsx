@@ -35,16 +35,42 @@ describe('SessionScreen settings (vibration only)', () => {
 
   it('BPMを変更して保存すると再描画後も値が保持される', async () => {
     const repo = createRepo();
-    const { getByText, findByText, unmount } = render(<SessionScreen settingsRepo={repo} />);
+    const { getAllByText, findByText, unmount } = render(<SessionScreen settingsRepo={repo} />);
 
     await findByText('BPM: 60');
 
-    fireEvent.press(getByText('+BPM'));
-    fireEvent.press(getByText('保存'));
+    fireEvent.press(getAllByText('+BPM')[0]);
+    fireEvent.press(getAllByText('保存')[0]);
 
     // 再マウントして保存値が読み込まれることを確認
     unmount();
     const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} />);
     await findByText2('BPM: 61');
+  });
+});
+
+describe('SessionScreen breath settings', () => {
+  it('デフォルトの呼吸プリセットを表示する', async () => {
+    const repo = createRepo();
+    const { findByText } = render(<SessionScreen settingsRepo={repo} />);
+
+    await findByText('呼吸プリセット: 吸4-止6-吐4 (∞)');
+  });
+
+  it('プリセットボタンで呼吸パターンが更新され保存できる', async () => {
+    const repo = createRepo();
+    const { getByText, getAllByText, findByText } = render(<SessionScreen settingsRepo={repo} />);
+
+    await findByText('呼吸設定（独立保存）');
+
+    fireEvent.press(getByText('5-5-5 (∞)'));
+    await findByText('呼吸プリセット: 吸5-止5-吐5 (∞)');
+
+    fireEvent.press(getByText('吸+'));
+    fireEvent.press(getAllByText('保存')[1]);
+
+    // 再描画しても変更が保持されること
+    const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} />);
+    await findByText2('呼吸プリセット: 吸6-止5-吐5 (∞)');
   });
 });
