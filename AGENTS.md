@@ -26,7 +26,7 @@ AI-DLC（AI Development Life Cycle）上で動く、Kiro 風 Spec Driven Develop
 - 進捗確認は `/prompts:kiro-spec-status [feature-name]` を使います
 
 ## 開発ガイドライン
-- 思考は英語で行い、返答は日本語で生成してください。
+- 返答は日本語で生成してください。
 - プロジェクトファイルに書き出す Markdown（例：requirements.md, design.md, tasks.md, research.md, 検証レポート）は、各仕様で設定されたターゲット言語で必ず記述してください（`spec.json.language` を参照）。
 
 ## 最小ワークフロー（Minimal Workflow）
@@ -53,7 +53,9 @@ AI-DLC（AI Development Life Cycle）上で動く、Kiro 風 Spec Driven Develop
 - ユーザーの指示に厳密に従い、その範囲内で自律的に行動すること：
   - 必要なコンテキストを収集し、この実行内で依頼内容をエンドツーエンドで完了させる
   - ただし、必須情報が欠けている／指示が致命的に曖昧な場合に限り質問する
-- コードコメント（インラインコメント、docstring）は、人間のレビュー可読性を優先して必ず日本語で書くこと
+- コードコメント（インラインコメント、docstring）は日本語で書くこと（人間のレビュー可読性を優先）。
+- 「意図がコードから読み取りづらい箇所」には、なぜそうしたかが分かる短いコメントを残すこと（What ではなく Why を優先）。
+- 関数・クラス・公開APIには、役割・前提・入出力・副作用（必要ならエラー条件）を簡潔に説明する docstring/コメントを付けること。
 
 ## Steering 設定
 - `.kiro/steering/` 全体をプロジェクトメモリとしてロードする
