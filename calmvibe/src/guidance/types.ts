@@ -18,6 +18,7 @@ export type GuidanceConfig = {
 export type GuidanceStep = {
   elapsedSec: number;
   cycle: number;
+  phase?: 'INHALE' | 'HOLD' | 'EXHALE' | 'PULSE';
 };
 
 export type GuidanceListener = {
