@@ -31,14 +31,14 @@
   - 振動不可（permission/disabled等）をResultで通知し、上位で視覚のみ継続できるようにする
   - _Requirements: 1.3,2.2_
 
-- [ ] 4. セッション開始・停止・完了フロー
+- [x] 4. セッション開始・停止・完了フロー
 - [x] 4.1 Start/Stop処理
   - 設定読込→Guidance開始、duration/手動停止の早い方で停止し状態を更新する
   - _Requirements: 2.1,2.4,3.2,3.3_
 - [x] 4.2 完了入力モーダルとSessionUseCase.complete
   - 停止後にpre/post心拍、comfort、improvement、guideType、breath/BPMを入力させ、UseCaseで検証して保存要求を発行する
   - _Requirements: 4.1,4.2,4.3,4.4,4.5_
-- [ ] 4.3 SessionRepositoryで記録保存
+- [x] 4.3 SessionRepositoryで記録保存
   - session_recordsへ開始/終了時刻、ガイド種別、心拍、主観評価、breath/BPMを保存する
   - _Requirements: 4.1,4.2,4.3,4.4,4.5_
 
