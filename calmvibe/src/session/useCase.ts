@@ -47,7 +47,7 @@ export class SessionUseCase {
             bpm: settings.bpm,
             durationSec,
             visualEnabled: true,
-            vibrationPattern: [0],
+            vibrationPattern: [50], // 50ms パルス
           }
         : {
             mode: 'BREATH' as const,
@@ -58,7 +58,7 @@ export class SessionUseCase {
               holdMs: settings.breath.type === 'three-phase' ? settings.breath.holdSec * 1000 : undefined,
               exhaleMs: settings.breath.exhaleSec * 1000,
               cycles: settings.breath.cycles === null ? null : settings.breath.cycles,
-              haptics: { pattern: [0] },
+              haptics: { pattern: [50] },
             },
           };
 
