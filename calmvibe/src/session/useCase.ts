@@ -1,6 +1,6 @@
 import { GuidanceEngine, GuidanceListener } from '../guidance';
 import { SettingsRepository } from '../settings/types';
-import { SessionRepository } from './types.ts';
+import { SessionRecord, SessionRepository } from './types.ts';
 
 export type StartInput = { mode: 'VIBRATION' | 'BREATH' };
 
@@ -21,6 +21,7 @@ export class SessionUseCase {
   private settingsRepo: SettingsRepository;
   private sessionRepo: SessionRepository;
   private active = false;
+  private startedAt: number | null = null;
 
   constructor(guidance: GuidanceEngine, settingsRepo: SettingsRepository, sessionRepo: SessionRepository) {
     this.guidance = guidance;
@@ -36,6 +37,7 @@ export class SessionUseCase {
     if (this.active) return { ok: false, error: 'already_active' };
     const settings = await this.settingsRepo.get();
     const durationSec = settings.durationSec ?? 3600; // 無制限時の上限は1h仮置き
+    this.startedAt = Date.now();
 
     const config =
       input.mode === 'VIBRATION'
@@ -73,8 +75,23 @@ export class SessionUseCase {
   }
 
   async complete(input: CompleteInput): Promise<Result> {
-    // NOTE: 記録保存はタスク4.2/4.3で実装予定。ここではOKのみ返す。
+    if (!this.startedAt) return { ok: false, error: 'not_started' };
+    const endedAt = Date.now();
+    const record: SessionRecord = {
+      id: `${endedAt}`,
+      startedAt: new Date(this.startedAt).toISOString(),
+      endedAt: new Date(endedAt).toISOString(),
+      guideType: input.guideType,
+      bpm: input.bpm,
+      preHr: input.preHr,
+      postHr: input.postHr,
+      comfort: input.comfort,
+      improvement: input.improvement,
+      breathConfig: input.breathConfig,
+    };
+    await this.sessionRepo.save(record);
     this.active = false;
+    this.startedAt = null;
     return { ok: true };
   }
 }

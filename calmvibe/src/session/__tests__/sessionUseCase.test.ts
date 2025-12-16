@@ -1,7 +1,7 @@
 import { SessionUseCase } from '../useCase';
 import { GuidanceEngine, GuidanceListener } from '../../guidance';
 import { SettingsRepository, SettingsValues } from '../../settings/types';
-import { SessionRepository } from '../types.ts';
+import { SessionRepository, SessionRecord } from '../types.ts';
 
 jest.useFakeTimers();
 
@@ -82,5 +82,45 @@ describe('SessionUseCase start/stop', () => {
     const stop2 = await useCase.stop();
     expect(stop2.ok).toBe(false);
     expect(stop2.error).toBe('not_active');
+  });
+});
+
+describe('SessionUseCase complete', () => {
+  it('開始・停止後に完了入力を保存する', async () => {
+    const { guidance, settingsRepo, sessionRepo } = createMocks();
+    const save = jest.fn().mockResolvedValue(undefined);
+    sessionRepo.save = save;
+    const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
+
+    await useCase.start({ mode: 'VIBRATION' });
+    await useCase.stop();
+    const input = {
+      guideType: 'VIBRATION' as const,
+      preHr: 80,
+      postHr: 70,
+      comfort: 4,
+      improvement: 5,
+      bpm: 60,
+      breathConfig: null,
+    };
+    const res = await useCase.complete(input);
+    expect(res.ok).toBe(true);
+    expect(save).toHaveBeenCalledTimes(1);
+    const record = save.mock.calls[0][0] as SessionRecord;
+    expect(record.guideType).toBe('VIBRATION');
+    expect(record.bpm).toBe(60);
+    expect(record.preHr).toBe(80);
+    expect(record.postHr).toBe(70);
+    expect(record.comfort).toBe(4);
+    expect(record.improvement).toBe(5);
+    expect(new Date(record.startedAt).getTime()).toBeLessThanOrEqual(new Date(record.endedAt).getTime());
+  });
+
+  it('開始せずにcompleteするとエラーを返す', async () => {
+    const { guidance, settingsRepo, sessionRepo } = createMocks();
+    const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
+
+    const res = await useCase.complete({ guideType: 'BREATH' });
+    expect(res.ok).toBe(false);
   });
 });

@@ -35,7 +35,7 @@
 - [x] 4.1 Start/Stop処理
   - 設定読込→Guidance開始、duration/手動停止の早い方で停止し状態を更新する
   - _Requirements: 2.1,2.4,3.2,3.3_
-- [ ] 4.2 完了入力モーダルとSessionUseCase.complete
+- [x] 4.2 完了入力モーダルとSessionUseCase.complete
   - 停止後にpre/post心拍、comfort、improvement、guideType、breath/BPMを入力させ、UseCaseで検証して保存要求を発行する
   - _Requirements: 4.1,4.2,4.3,4.4,4.5_
 - [ ] 4.3 SessionRepositoryで記録保存
