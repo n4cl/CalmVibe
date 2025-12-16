@@ -1,7 +1,7 @@
 import { SessionUseCase } from '../useCase';
 import { GuidanceEngine, GuidanceListener } from '../../guidance';
 import { SettingsRepository, SettingsValues } from '../../settings/types';
-import { SessionRepository } from '../types';
+import { SessionRepository } from '../types.ts';
 
 jest.useFakeTimers();
 

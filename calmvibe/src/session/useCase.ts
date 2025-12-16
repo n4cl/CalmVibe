@@ -1,6 +1,6 @@
 import { GuidanceEngine, GuidanceListener } from '../guidance';
 import { SettingsRepository } from '../settings/types';
-import { SessionRepository } from './types';
+import { SessionRepository } from './types.ts';
 
 export type StartInput = { mode: 'VIBRATION' | 'BREATH' };
 

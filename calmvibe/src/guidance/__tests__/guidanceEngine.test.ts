@@ -96,7 +96,7 @@ describe('SimpleGuidanceEngine BREATH', () => {
   });
 
   it('吸→止→吐をcycles回実行し完了する', async () => {
-    const { adapter, play } = createAdapter();
+    const { adapter } = createAdapter();
     const engine = new SimpleGuidanceEngine(adapter);
     const onComplete = jest.fn();
     const onStep = jest.fn();

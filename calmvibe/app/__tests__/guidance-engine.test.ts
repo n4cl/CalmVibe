@@ -37,12 +37,12 @@ describe('GuidanceEngine (vibration)', () => {
     await engine.startGuidance(baseConfig, listener);
 
     expect(adapter.play).toHaveBeenCalledTimes(1);
-    expect(listener.onStep).toHaveBeenCalledWith({ elapsedSec: 0, cycle: 0 });
+    expect(listener.onStep).toHaveBeenCalledWith({ elapsedSec: 0, cycle: 0, phase: 'PULSE' });
 
     jest.advanceTimersByTime(1000); // 60bpm => 約1秒
     await Promise.resolve(); // play()の非同期完了を待つ
     expect(adapter.play).toHaveBeenCalledTimes(2);
-    expect(listener.onStep).toHaveBeenLastCalledWith({ elapsedSec: 1, cycle: 1 });
+    expect(listener.onStep).toHaveBeenLastCalledWith({ elapsedSec: 1, cycle: 1, phase: 'PULSE' });
   });
 
   it('duration経過でonCompleteし停止する', async () => {

@@ -15,7 +15,7 @@ const intensityOptions: { label: string; value: VibrationIntensity }[] = [
   { label: '強', value: 'strong' },
 ];
 
-const breathPresets: Array<{ label: string; pattern: BreathPattern }> = [
+const breathPresets: { label: string; pattern: BreathPattern }[] = [
   { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
   { label: '4-4 (5回)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: 5 } },
 ];

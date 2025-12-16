@@ -96,7 +96,7 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
 
   private loopBreath(config: GuidanceConfig) {
     const breath = config.breath as NonNullable<GuidanceConfig['breath']>;
-    const phases: Array<{ phase: GuidanceStep['phase']; duration: number; pattern?: number[] }> = [
+    const phases: { phase: GuidanceStep['phase']; duration: number; pattern?: number[] }[] = [
       { phase: 'INHALE', duration: breath.inhaleMs, pattern: breath.haptics?.pattern },
       ...(breath.holdMs ? [{ phase: 'HOLD', duration: breath.holdMs, pattern: breath.haptics?.pattern }] : []),
       { phase: 'EXHALE', duration: breath.exhaleMs, pattern: breath.haptics?.pattern },
