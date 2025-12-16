@@ -1,26 +1,44 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 export type GuidePhase = 'INHALE' | 'HOLD' | 'EXHALE' | 'PULSE';
 
 type Props = {
   phase: GuidePhase;
+  tick?: number;
   testID?: string;
   accessibilityLabel?: string;
 };
 
-export const VisualGuide = ({ phase, testID, accessibilityLabel }: Props) => {
+type PhaseStyle = {
+  color: string;
+  sequence: number[]; // 連続したscale値
+  durations: number[]; // sequenceと同じ長さ
+};
+
+const phaseStyles: Record<GuidePhase, PhaseStyle> = {
+  INHALE: { color: '#b8e1ff', sequence: [1.12, 1], durations: [500, 300] },
+  HOLD: { color: '#d8def7', sequence: [1.05, 1], durations: [400, 250] },
+  EXHALE: { color: '#cde4ff', sequence: [0.9, 1], durations: [500, 300] },
+  // 心拍らしさを出すために「縮む→少し戻る」のシーケンス
+  PULSE: { color: '#cde4ff', sequence: [0.9, 1.05, 1], durations: [160, 140, 140] },
+};
+
+export const VisualGuide = ({ phase, tick = 0, testID, accessibilityLabel }: Props) => {
   const scale = useRef(new Animated.Value(1)).current;
-  const color = phase === 'INHALE' ? '#b8e1ff' : phase === 'HOLD' ? '#d8def7' : '#cde4ff';
-  const target = phase === 'PULSE' ? 1.2 : phase === 'INHALE' ? 1.15 : phase === 'EXHALE' ? 0.95 : 1.0;
+  const { color, sequence, durations } = phaseStyles[phase];
 
   useEffect(() => {
-    Animated.timing(scale, {
-      toValue: target,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [target, scale]);
+    const anims = sequence.map((value, idx) =>
+      Animated.timing(scale, {
+        toValue: value,
+        duration: durations[idx] ?? durations[durations.length - 1],
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      })
+    );
+    Animated.sequence(anims).start();
+  }, [phase, sequence, durations, scale, tick]);
 
   return (
     <View style={styles.container} testID={testID} accessibilityLabel={accessibilityLabel ?? phase}>
@@ -31,5 +49,5 @@ export const VisualGuide = ({ phase, testID, accessibilityLabel }: Props) => {
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
-  circle: { width: 140, height: 140, borderRadius: 70, backgroundColor: '#cde4ff' },
+  circle: { width: 160, height: 160, borderRadius: 80, backgroundColor: '#cde4ff' },
 });

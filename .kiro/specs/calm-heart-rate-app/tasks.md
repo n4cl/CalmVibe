@@ -41,6 +41,10 @@
 - [x] 4.3 SessionRepositoryで記録保存
   - session_recordsへ開始/終了時刻、ガイド種別、心拍、主観評価、breath/BPMを保存する
   - _Requirements: 4.1,4.2,4.3,4.4,4.5_
+- [x] 4.4 SessionScreenをUseCase/GuidanceEngineに接続し設定どおり継続動作させる
+  - Start/Stopボタンを SessionUseCase.start/stop に置き換え、BPM/時間/呼吸フェーズ/cycles/durationを反映する
+  - GuidanceEngineのonStep/onComplete/onStopでVisualGuideと状態表示を同期し、仮タイマーを撤去する
+  - _Requirements: 1.3,2.1,2.2,2.3,2.4,2.5,3.2,3.3_
 
 - [ ] 5. 履歴一覧・詳細表示
 - [ ] 5.1 履歴一覧（startedAt DESC）

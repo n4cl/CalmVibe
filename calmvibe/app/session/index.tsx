@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { VisualGuide, GuidePhase } from './visualGuide';
 import { SettingsRepository, SettingsValues, VibrationIntensity, BreathPattern } from '../../src/settings/types';
 import { SqliteSettingsRepository } from '../../src/settings/sqliteRepository';
+import { GuidanceListener, SimpleGuidanceEngine, ExpoHapticsAdapter } from '../../src/guidance';
+import { SessionUseCase } from '../../src/session/useCase';
+import { SqliteSessionRepository } from '../../src/session/sqliteRepository';
 
 export type SessionScreenProps = {
   settingsRepo?: SettingsRepository;
+  useCase?: SessionUseCase;
 };
 
 const intensityOptions: { label: string; value: VibrationIntensity }[] = [
@@ -20,14 +23,24 @@ const breathPresets: { label: string; pattern: BreathPattern }[] = [
   { label: '4-4 (5回)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: 5 } },
 ];
 
-export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
+export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }: SessionScreenProps) {
   const repo = useMemo<SettingsRepository>(() => settingsRepo ?? new SqliteSettingsRepository(), [settingsRepo]);
+  const useCase = useMemo<SessionUseCase>(
+    () =>
+      injectedUseCase ??
+      new SessionUseCase(
+        new SimpleGuidanceEngine(new ExpoHapticsAdapter()),
+        repo,
+        new SqliteSessionRepository()
+      ),
+    [repo, injectedUseCase]
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<SettingsValues | null>(null);
   const [running, setRunning] = useState<'none' | 'vibration' | 'breath'>('none');
   const [phase, setPhase] = useState<GuidePhase>('PULSE');
-  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [guideTick, setGuideTick] = useState(0);
   const runningRef = React.useRef<'none' | 'vibration' | 'breath'>('none');
 
   useEffect(() => {
@@ -41,7 +54,6 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
     })();
     return () => {
       mounted = false;
-      clearTimer();
     };
   }, [repo]);
 
@@ -68,10 +80,10 @@ export default function SessionScreen({ settingsRepo }: SessionScreenProps) {
     setValues({ ...values, intensity: i });
   };
 
-  const setBreath = (pattern: BreathPattern) => {
-    if (!values) return;
-    setValues({ ...values, breath: pattern });
-  };
+const setBreath = (pattern: BreathPattern) => {
+  if (!values) return;
+  setValues({ ...values, breath: pattern });
+};
 
 const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: number) => {
   if (!values) return;
@@ -102,53 +114,49 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
     setSaving(false);
   };
 
-  const clearTimer = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
+  const listener: GuidanceListener = {
+    onStep: (step) => {
+      if (step.phase) setPhase(step.phase as GuidePhase);
+      setGuideTick((t) => t + 1);
+    },
+    onComplete: () => {
+      setRunning('none');
+      runningRef.current = 'none';
+      setGuideTick((t) => t + 1);
+    },
+    onStop: () => {
+      setRunning('none');
+      runningRef.current = 'none';
+      setGuideTick((t) => t + 1);
+    },
   };
 
   const stop = async () => {
-    clearTimer();
+    if (runningRef.current === 'none') return;
+    await useCase.stop();
     setRunning('none');
     runningRef.current = 'none';
+    setPhase('PULSE');
   };
 
   const startVibration = async () => {
     if (!values) return;
-    await stop();
-    setRunning('vibration');
-    runningRef.current = 'vibration';
-    setPhase('PULSE');
-    const style = values.intensity === 'strong' ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium;
-    const intervalMs = Math.max(200, Math.round(60000 / values.bpm));
-    const tick = async () => {
-      if (runningRef.current !== 'vibration') return;
+    const res = await useCase.start({ mode: 'VIBRATION' }, listener);
+    if (res.ok) {
+      setRunning('vibration');
+      runningRef.current = 'vibration';
       setPhase('PULSE');
-      await Haptics.impactAsync(style).catch(() => {});
-      timerRef.current = setTimeout(tick, intervalMs);
-    };
-    timerRef.current = setTimeout(tick, 10);
+    }
   };
 
   const startBreath = async () => {
     if (!values) return;
-    await stop();
-    setRunning('breath');
-    runningRef.current = 'breath';
-    const phases: GuidePhase[] = values.breath.type === 'three-phase' ? ['INHALE', 'HOLD', 'EXHALE'] : ['INHALE', 'EXHALE'];
-    let idx = 1;
-    setPhase(phases[0]);
-    const tick = async () => {
-      if (runningRef.current !== 'breath') return;
-      const current = phases[idx % phases.length];
-      setPhase(current);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      idx += 1;
-      timerRef.current = setTimeout(tick, 400);
-    };
-    timerRef.current = setTimeout(tick, 400);
+    const res = await useCase.start({ mode: 'BREATH' }, listener);
+    if (res.ok) {
+      setRunning('breath');
+      runningRef.current = 'breath';
+      setPhase('INHALE');
+    }
   };
 
   if (loading || !values) {
@@ -163,7 +171,7 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>セッション開始</Text>
-      {running !== 'none' && <VisualGuide phase={phase} testID="visual-guide" accessibilityLabel={phase} />}
+      {running !== 'none' && <VisualGuide phase={phase} tick={guideTick} testID="visual-guide" accessibilityLabel={phase} />}
       <View style={styles.card}>
         <View style={styles.row}>
           <Pressable style={[styles.saveButton, running === 'vibration' && styles.previewActive]} onPress={startVibration}>
