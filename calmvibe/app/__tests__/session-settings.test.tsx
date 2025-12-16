@@ -62,7 +62,7 @@ describe('SessionScreen breath settings', () => {
     const useCase = { start: jest.fn(), stop: jest.fn() } as any;
     const { findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
-    await findByText('呼吸プリセット: 吸4-止6-吐4 (5回)');
+    await findByText('呼吸プリセット: 吸4-吐4 (5回)');
   });
 
   it('プリセットボタンで呼吸パターンが更新され保存できる', async () => {

@@ -8,9 +8,8 @@ jest.mock('expo-sqlite', () => ({
 const repo = () => new SqliteSettingsRepository();
 
 const validBreath: SettingsValues['breath'] = {
-  type: 'three-phase',
+  type: 'two-phase',
   inhaleSec: 4,
-  holdSec: 6,
   exhaleSec: 4,
   cycles: null,
 };

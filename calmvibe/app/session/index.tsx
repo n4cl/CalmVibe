@@ -19,8 +19,8 @@ const intensityOptions: { label: string; value: VibrationIntensity }[] = [
 ];
 
 const breathPresets: { label: string; pattern: BreathPattern }[] = [
-  { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
   { label: '4-4 (5回)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: 5 } },
+  { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
 ];
 
 export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }: SessionScreenProps) {
@@ -171,7 +171,23 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>セッション開始</Text>
-      {running !== 'none' && <VisualGuide phase={phase} tick={guideTick} testID="visual-guide" accessibilityLabel={phase} />}
+      {running !== 'none' && (
+        <VisualGuide
+          phase={phase}
+          tick={guideTick}
+          phaseDurations={
+            running === 'breath' && values
+              ? {
+                  INHALE: values.breath.inhaleSec * 1000,
+                  HOLD: values.breath.type === 'three-phase' ? values.breath.holdSec * 1000 : undefined,
+                  EXHALE: values.breath.exhaleSec * 1000,
+                }
+              : undefined
+          }
+          testID="visual-guide"
+          accessibilityLabel={phase}
+        />
+      )}
       <View style={styles.card}>
         <View style={styles.row}>
           <Pressable style={[styles.saveButton, running === 'vibration' && styles.previewActive]} onPress={startVibration}>
