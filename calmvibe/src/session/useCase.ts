@@ -38,6 +38,7 @@ export class SessionUseCase {
     const settings = await this.settingsRepo.get();
     const durationSec = settings.durationSec ?? 3600; // 無制限時の上限は1h仮置き
     this.startedAt = Date.now();
+    const wrappedListener = this.wrapListener(listener);
 
     const config =
       input.mode === 'VIBRATION'
@@ -61,7 +62,7 @@ export class SessionUseCase {
             },
           };
 
-    const res = await this.guidance.startGuidance(config, listener);
+    const res = await this.guidance.startGuidance(config, wrappedListener);
     if (!res.ok) return res;
     this.active = true;
     return { ok: true };
@@ -93,5 +94,29 @@ export class SessionUseCase {
     this.active = false;
     this.startedAt = null;
     return { ok: true };
+  }
+
+  private wrapListener(listener?: GuidanceListener): GuidanceListener | undefined {
+    if (!listener) {
+      return {
+        onComplete: () => {
+          this.active = false;
+        },
+        onStop: () => {
+          this.active = false;
+        },
+      };
+    }
+    return {
+        onStep: (s) => listener.onStep?.(s),
+        onComplete: () => {
+          this.active = false;
+          listener.onComplete?.();
+        },
+        onStop: () => {
+          this.active = false;
+          listener.onStop?.();
+        },
+      };
   }
 }

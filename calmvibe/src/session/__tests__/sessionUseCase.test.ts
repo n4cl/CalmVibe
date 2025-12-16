@@ -41,7 +41,7 @@ describe('SessionUseCase start/stop', () => {
     expect(res.ok).toBe(true);
     expect(startGuidance).toHaveBeenCalledWith(
       expect.objectContaining({ mode: 'VIBRATION', bpm: 60, durationSec: 120 }),
-      undefined
+      expect.any(Object)
     );
     expect(useCase.isActive()).toBe(true);
 
@@ -62,7 +62,7 @@ describe('SessionUseCase start/stop', () => {
         mode: 'BREATH',
         breath: expect.objectContaining({ inhaleMs: 4000, holdMs: 6000, exhaleMs: 4000, cycles: 2 }),
       }),
-      undefined
+      expect.any(Object)
     );
   });
 
@@ -82,6 +82,20 @@ describe('SessionUseCase start/stop', () => {
     const stop2 = await useCase.stop();
     expect(stop2.ok).toBe(false);
     expect(stop2.error).toBe('not_active');
+  });
+
+  it('ガイド終了(onComplete)でactiveを解除し、再度開始できる', async () => {
+    const { guidance, settingsRepo, sessionRepo, startGuidance } = createMocks();
+    const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
+
+    await useCase.start({ mode: 'VIBRATION' }, {} as GuidanceListener);
+    const listener = startGuidance.mock.calls[0][1] as GuidanceListener;
+    listener.onComplete?.(); // 自動停止想定
+    expect(useCase.isActive()).toBe(false);
+
+    const res = await useCase.start({ mode: 'VIBRATION' });
+    expect(res.ok).toBe(true);
+    expect(startGuidance).toHaveBeenCalledTimes(2);
   });
 });
 
