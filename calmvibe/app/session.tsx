@@ -168,23 +168,22 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
           <Text style={[styles.modeLabel, selectedMode === 'BREATH' && styles.modeLabelActive]}>呼吸ガイド</Text>
         </Pressable>
       </View>
-      {running !== 'none' && (
-        <VisualGuide
-          phase={phase}
-          tick={guideTick}
-          phaseDurations={
-            running === 'breath' && values
-              ? {
-                  INHALE: values.breath.inhaleSec * 1000,
-                  HOLD: values.breath.type === 'three-phase' ? values.breath.holdSec * 1000 : undefined,
-                  EXHALE: values.breath.exhaleSec * 1000,
-                }
-              : undefined
-          }
-          testID="visual-guide"
-          accessibilityLabel={phase}
-        />
-      )}
+      <VisualGuide
+        phase={phase}
+        tick={guideTick}
+        paused={running === 'none'}
+        phaseDurations={
+          running === 'breath' && values
+            ? {
+                INHALE: values.breath.inhaleSec * 1000,
+                HOLD: values.breath.type === 'three-phase' ? values.breath.holdSec * 1000 : undefined,
+                EXHALE: values.breath.exhaleSec * 1000,
+              }
+            : undefined
+        }
+        testID="visual-guide"
+        accessibilityLabel={running === 'none' ? '待機中' : phase}
+      />
       <View style={styles.card}>
         <View style={styles.row}>
           <Pressable

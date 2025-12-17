@@ -114,7 +114,7 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
     const { getByText, queryByTestId, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase as any} />);
 
     await findByText('セッション開始');
-    expect(queryByTestId('visual-guide')).toBeNull();
+    expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('待機中');
 
     await act(async () => {
       fireEvent.press(getByText('開始'));
@@ -130,7 +130,7 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
       fireEvent.press(getByText('停止'));
     });
     expect(useCase.stop).toHaveBeenCalled();
-    expect(queryByTestId('visual-guide')).toBeNull();
+    expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('待機中');
   });
 
   it('呼吸開始でonStepに従いフェーズが進み、完了で非表示になる', async () => {
@@ -152,6 +152,6 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
       useCase.emitStep('EXHALE', 0);
       useCase.emitComplete();
     });
-    expect(queryByTestId('visual-guide')).toBeNull();
+    expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('待機中');
   });
 });

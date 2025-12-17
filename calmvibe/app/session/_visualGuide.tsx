@@ -9,20 +9,26 @@ type Props = {
   phaseDurations?: Partial<Record<GuidePhase, number>>; // ms
   testID?: string;
   accessibilityLabel?: string;
+  paused?: boolean;
 };
 
-const baseScale = 1;
 const maxScale = 1.12;
 const minScaleBreath = 0.6; // 吐き切り感をさらに強調
 const minScalePulse = 0.9;
 // 振動ガイドの最大スケールに合わせる
 const pulseSeq = { seq: [minScalePulse, maxScale, 1], durations: [160, 140, 140] };
 
-export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibilityLabel }: Props) => {
+export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibilityLabel, paused }: Props) => {
   const scale = useRef(new Animated.Value(minScaleBreath)).current;
   const currentScale = useRef(minScaleBreath);
 
   useEffect(() => {
+    if (paused) {
+      scale.setValue(minScalePulse);
+      currentScale.current = minScalePulse;
+      return;
+    }
+
     const inhaleMs = phaseDurations?.INHALE ?? 500;
     const holdMs = phaseDurations?.HOLD ?? 300;
     const exhaleMs = phaseDurations?.EXHALE ?? 500;
@@ -59,7 +65,7 @@ export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibi
         runSeq(pulseSeq.seq, pulseSeq.durations);
         break;
     }
-  }, [phase, phaseDurations, scale, tick]);
+  }, [phase, phaseDurations, scale, tick, paused]);
 
   const color = phase === 'HOLD' ? '#d8def7' : '#b8e1ff';
 
