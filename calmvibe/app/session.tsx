@@ -202,11 +202,11 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
         accessibilityLabel={running === 'none' ? '待機中' : phase}
       />
       <View style={styles.card}>
-        <View style={styles.row}>
+        <View style={styles.actionRow}>
           <Pressable
             style={[
-              styles.saveButton,
-              running !== 'none' && styles.saveButtonDisabled,
+              styles.actionButton,
+              running !== 'none' && styles.actionButtonDisabled,
               running !== 'none' && styles.previewActive,
             ]}
             onPress={start}
@@ -214,7 +214,11 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
           >
             <Text style={styles.saveLabel}>開始</Text>
           </Pressable>
-          <Pressable style={[styles.saveButton, running === 'none' && styles.saveButtonDisabled]} onPress={stop} disabled={running === 'none'}>
+          <Pressable
+            style={[styles.actionButton, running === 'none' && styles.actionButtonDisabled]}
+            onPress={stop}
+            disabled={running === 'none'}
+          >
             <Text style={styles.saveLabel}>停止</Text>
           </Pressable>
         </View>
@@ -350,6 +354,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   card: { backgroundColor: '#f4f6fb', borderRadius: 12, padding: 12, gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%' },
   label: { fontSize: 14, color: '#222' },
   button: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#e8f1ff', borderWidth: 1, borderColor: '#2563eb' },
   buttonLabel: { color: '#1746b4', fontWeight: '700', fontSize: 12 },
@@ -370,4 +375,6 @@ const styles = StyleSheet.create({
   previewButton: { marginTop: 10, paddingVertical: 10, borderRadius: 10, backgroundColor: '#e8f1ff', alignItems: 'center', borderWidth: 1, borderColor: '#2563eb' },
   previewActive: { backgroundColor: '#d6e7ff' },
   previewLabel: { color: '#1746b4', fontWeight: '700' },
+  actionButton: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center' },
+  actionButtonDisabled: { opacity: 0.6 },
 });
