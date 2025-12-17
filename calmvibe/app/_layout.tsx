@@ -1,15 +1,25 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { useKeepAwake } from 'expo-keep-awake';
-import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
+import { useKeepAwake } from 'expo-keep-awake';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function RootLayout() {
   useKeepAwake();
   return (
     <GestureHandlerRootView style={styles.container}>
-      <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs
+        initialRouteName="session"
+        screenOptions={{
+          headerShown: false,
+        }}>
+        <Tabs.Screen
+          name="index"
+          options={{
+            href: null, // ルートは /session へリダイレクトするだけでタブには出さない
+          }}
+        />
         <Tabs.Screen
           name="session"
           options={{

@@ -41,12 +41,12 @@ describe('SessionScreen settings (vibration only)', () => {
   it('BPMを変更して保存すると再描画後も値が保持される', async () => {
     const repo = createRepo();
     const useCase = { start: jest.fn(), stop: jest.fn() } as any;
-    const { getAllByText, findByText, unmount } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    const { getAllByText, findByText, getByText, unmount } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
     await findByText('BPM: 60');
 
     fireEvent.press(getAllByText('+BPM')[0]);
-    fireEvent.press(getAllByText('保存')[0]);
+    fireEvent.press(getByText('保存'));
 
     // 再マウントして保存値が読み込まれることを確認
     unmount();
@@ -75,7 +75,7 @@ describe('SessionScreen breath settings', () => {
     await findByText('呼吸プリセット: 吸4-吐4 (5回)');
 
     fireEvent.press(getByText('吸+'));
-    fireEvent.press(getAllByText('保存')[1]);
+    fireEvent.press(getByText('保存'));
 
     // 再描画しても変更が保持されること
     const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);

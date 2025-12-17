@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { VisualGuide, GuidePhase } from './visualGuide';
-import { SettingsRepository, SettingsValues, VibrationIntensity, BreathPattern } from '../../src/settings/types';
-import { SqliteSettingsRepository } from '../../src/settings/sqliteRepository';
-import { GuidanceListener, SimpleGuidanceEngine, ExpoHapticsAdapter } from '../../src/guidance';
-import { SessionUseCase } from '../../src/session/useCase';
-import { SqliteSessionRepository } from '../../src/session/sqliteRepository';
+import { VisualGuide, GuidePhase } from './session/_visualGuide';
+import { SettingsRepository, SettingsValues, VibrationIntensity, BreathPattern } from '../src/settings/types';
+import { SqliteSettingsRepository } from '../src/settings/sqliteRepository';
+import { GuidanceListener, SimpleGuidanceEngine, ExpoHapticsAdapter } from '../src/guidance';
+import { SessionUseCase } from '../src/session/useCase';
+import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 
 export type SessionScreenProps = {
   settingsRepo?: SettingsRepository;
@@ -69,21 +69,21 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
     setValues({ ...values, durationSec: values.durationSec === null ? 180 : null });
   };
 
-const setBreath = (pattern: BreathPattern) => {
-  if (!values) return;
-  setValues({ ...values, breath: pattern });
-};
+  const setBreath = (pattern: BreathPattern) => {
+    if (!values) return;
+    setValues({ ...values, breath: pattern });
+  };
 
-const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: number) => {
-  if (!values) return;
-  if (values.breath.type === 'two-phase' && key === 'holdSec') return;
-  const next = Math.max(1, (values.breath as any)[key] + delta);
-  if (values.breath.type === 'two-phase') {
-    setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
-  } else {
-    setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
-  }
-};
+  const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: number) => {
+    if (!values) return;
+    if (values.breath.type === 'two-phase' && key === 'holdSec') return;
+    const next = Math.max(1, (values.breath as any)[key] + delta);
+    if (values.breath.type === 'two-phase') {
+      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
+    } else {
+      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
+    }
+  };
 
   const changeCycles = (delta: number | 'inf') => {
     if (!values) return;
@@ -226,14 +226,8 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
           </Pressable>
         </View>
 
-        <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
-          <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
-        </Pressable>
-      </View>
-
-      <Text style={styles.title}>呼吸設定（独立保存）</Text>
-      <View style={styles.card}>
-        <Text style={styles.subTitle}>プリセット</Text>
+        <Text style={styles.title}>呼吸設定（独立保存）</Text>
+        <Text style={styles.subTitle}>呼吸プリセット</Text>
         <View style={styles.row}>
           {breathPresets.map((preset) => (
             <Pressable
@@ -306,10 +300,14 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
           呼吸プリセット: {values.breath.type === 'three-phase' ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}` : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`} ({values.breath.cycles ? `${values.breath.cycles}回` : '∞'})
         </Text>
 
-        <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
-          <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
-        </Pressable>
+        {/* 保存は画面下部に統一ボタンを配置するため、ここでは表示しない */}
+
       </View>
+
+      {/* 全設定を一括保存する共通ボタン */}
+      <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
+        <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
+      </Pressable>
     </ScrollView>
   );
 }
