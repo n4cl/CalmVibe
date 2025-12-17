@@ -1,7 +1,7 @@
 import { GuidanceConfig, GuidanceEngine, GuidanceListener, HapticsAdapter, Result } from './types';
 
 /**
- * 振動ガイド専用のシンプル実装。
+ * 心拍ガイド専用のシンプル実装。
  * - 単一アクティブ
  * - BPM間隔で単発振動（±5%を目標にドリフト補正）
  * - durationSec 経過で自動停止し onComplete を通知

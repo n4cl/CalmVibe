@@ -16,7 +16,7 @@ type Props = {
 const maxScale = 1.12;
 const minScaleBreath = 0.5; // 吐き切り感をさらに強調（より小さく）
 const minScalePulse = 0.9;
-// 振動ガイドの最大スケールに合わせる
+// 心拍ガイドの最大スケールに合わせる
 const pulseSeq = { seq: [minScalePulse, maxScale, 1], durations: [160, 140, 140] };
 
 export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibilityLabel, paused, mode }: Props) => {

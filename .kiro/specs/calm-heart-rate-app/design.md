@@ -1,16 +1,16 @@
 # デザインドキュメント
 
 ---
-**Purpose**: 振動/呼吸ガイドを即時開始できるセッション体験を軸に、2タブ（セッション/履歴）へ再編し、設定・ガイド実行・記録をシンプルに運用できるようにする。
+**Purpose**: 心拍/呼吸ガイドを即時開始できるセッション体験を軸に、2タブ（セッション/履歴）へ再編し、設定・ガイド実行・記録をシンプルに運用できるようにする。
 **Approach**: 既存の MVVM + UseCase + Repository を踏襲し、プレビュー廃止後の開始/停止フローとタブ構成を再設計する。
 ---
 
 ## Overview
-本機能は、セッション（振動/呼吸ガイドの開始・停止・設定）と履歴確認を2タブで提供し、発作時でも最少タップでガイドを開始できるようにする。タブ切替でも設定や入力状態を失わず、記録を後から参照できる。
+本機能は、セッション（心拍/呼吸ガイドの開始・停止・設定）と履歴確認を2タブで提供し、発作時でも最少タップでガイドを開始できるようにする。タブ切替でも設定や入力状態を失わず、記録を後から参照できる。
 
 ### Goals
 - セッションタブでモード選択→開始/停止がワンタップ圏内で完結する。
-- 呼吸/振動ガイドが視覚ガイドと同期し、BPM ±5%目標で実行される。
+- 呼吸/心拍ガイドが視覚ガイドと同期し、BPM ±5%目標で実行される。
 - 履歴タブで最新順の記録に即アクセスし、データはローカルに保持される。
 
 ### Non-Goals
@@ -132,7 +132,7 @@ sequenceDiagram
 | 1.4 | 前回設定の自動適用 | SessionViewModel, SettingsRepository | get | 起動時 |
 | 1.5 | 時間設定/無制限 | SessionViewModel, SettingsRepository | save/get | 設定 |
 | 1.6 | デフォルト復元 | SessionViewModel, SettingsRepository | save/get | 設定 |
-| 2.1 | 振動ガイド開始・視覚同期 | GuidanceEngine, HapticsAdapter, BreathVisualGuide | startGuidance listener | 進行 |
+| 2.1 | 心拍ガイド開始・視覚同期 | GuidanceEngine, HapticsAdapter, BreathVisualGuide | startGuidance listener | 進行 |
 | 2.2 | BPM±5%目標 | GuidanceEngine | startGuidance | 進行 |
 | 2.3 | 視覚ガイドOFF許可 | SessionViewModel | UI state | 進行 |
 | 2.4 | 時間/手動停止で確実終了 | GuidanceEngine, SessionUseCase | stopGuidance | 停止 |
@@ -155,7 +155,7 @@ sequenceDiagram
 | SessionScreen | UI | 設定編集と開始/停止操作 | 1.*,2.*,3.*,5.4 | SessionViewModel(P0) | State |
 | LogsScreen | UI | 履歴一覧/詳細表示 | 4.*,5.3 | SessionRepository(P0) | State |
 | SessionViewModel | UI/Domain Facade | 設定CRUD・開始/停止中継・状態保持 | 1.*,2.3,3.*,4.*,5.4 | SettingsRepository(P0), SessionUseCase(P0) | Service, State |
-| GuidanceEngine | Domain | 振動/呼吸ガイド実行とイベント通知 | 1.3,2.1-2.5,3.2 | HapticsAdapter(P0) | Service |
+| GuidanceEngine | Domain | 心拍/呼吸ガイド実行とイベント通知 | 1.3,2.1-2.5,3.2 | HapticsAdapter(P0) | Service |
 | SessionUseCase | Domain | 開始/停止/記録保存のオーケストレーション | 1.3,2.1-2.4,3.2,3.3,4.*,5.4 | GuidanceEngine(P0), SettingsRepository(P0), SessionRepository(P0) | Service |
 | SettingsRepository | Data | 設定の保存/取得 | 1.1-1.6,3.1 | SQLite/Memory(P0) | Service, State |
 | SessionRepository | Data | セッション記録保存/取得 | 4.*,5.3 | SQLite/Memory(P0) | Service, State |

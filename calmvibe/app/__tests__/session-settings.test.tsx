@@ -34,7 +34,7 @@ describe('SessionScreen settings (vibration only)', () => {
     const useCase = { start: jest.fn(), stop: jest.fn() } as any;
     const { findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
-    await findByText('振動ガイド');
+    await findByText('心拍ガイド');
     await findByText('BPM: 60');
     await findByText('時間: 180秒');
   });
@@ -74,7 +74,7 @@ describe('SessionScreen breath settings', () => {
 
     await findByText('呼吸ガイド');
     fireEvent.press(getByText('呼吸ガイド'));
-    await findByText('呼吸設定（独立保存）');
+    await findByText('呼吸ガイド設定');
 
     fireEvent.press(getByText('4-4 (5回)'));
     await findByText('呼吸プリセット: 吸4-吐4 (5回)');
