@@ -74,7 +74,7 @@ describe('SessionScreen breath settings', () => {
 
     await findByText('呼吸ガイド');
     fireEvent.press(getByText('呼吸ガイド'));
-    await findByText('呼吸ガイド設定');
+    await findByText('呼吸プリセット');
 
     fireEvent.press(getByText('4-4 (5回)'));
     await findByText('呼吸プリセット: 吸4-吐4 (5回)');

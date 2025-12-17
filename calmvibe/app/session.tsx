@@ -258,7 +258,6 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
 
       {selectedMode === 'BREATH' && (
         <View style={styles.card}>
-          <Text style={styles.subTitle}>呼吸ガイド設定</Text>
           <Text style={styles.subTitle}>呼吸プリセット</Text>
           <View style={styles.row}>
             {breathPresets.map((preset) => (
