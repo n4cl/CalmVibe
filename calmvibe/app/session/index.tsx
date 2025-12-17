@@ -12,12 +12,6 @@ export type SessionScreenProps = {
   useCase?: SessionUseCase;
 };
 
-const intensityOptions: { label: string; value: VibrationIntensity }[] = [
-  { label: '弱', value: 'low' },
-  { label: '中', value: 'medium' },
-  { label: '強', value: 'strong' },
-];
-
 const breathPresets: { label: string; pattern: BreathPattern }[] = [
   { label: '4-4 (5回)', pattern: { type: 'two-phase', inhaleSec: 4, exhaleSec: 4, cycles: 5 } },
   { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
@@ -73,11 +67,6 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
   const toggleDurationInfinite = () => {
     if (!values) return;
     setValues({ ...values, durationSec: values.durationSec === null ? 180 : null });
-  };
-
-  const setIntensity = (i: VibrationIntensity) => {
-    if (!values) return;
-    setValues({ ...values, intensity: i });
   };
 
 const setBreath = (pattern: BreathPattern) => {
@@ -237,23 +226,6 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
           </Pressable>
         </View>
 
-        <Text style={styles.subTitle}>バイブ強度</Text>
-        <View style={styles.row}>
-          {intensityOptions.map((opt) => (
-            <Pressable
-              key={opt.value}
-              style={[styles.chip, values.intensity === opt.value && styles.chipActive]}
-              onPress={() => setIntensity(opt.value)}
-            >
-              <Text style={[styles.chipLabel, values.intensity === opt.value && styles.chipLabelActive]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={styles.summary}>強度: {intensityOptions.find((o) => o.value === values.intensity)?.label ?? '中'}</Text>
-
         <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
           <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
         </Pressable>
@@ -328,21 +300,6 @@ const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: nu
           <Pressable style={styles.button} onPress={() => changeCycles('inf')}>
             <Text style={styles.buttonLabel}>∞にする</Text>
           </Pressable>
-        </View>
-
-        <Text style={styles.subTitle}>バイブ強度（呼吸ガイド）</Text>
-        <View style={styles.row}>
-          {intensityOptions.map((opt) => (
-            <Pressable
-              key={`breath-${opt.value}`}
-              style={[styles.chip, values.intensity === opt.value && styles.chipActive]}
-              onPress={() => setIntensity(opt.value)}
-            >
-              <Text style={[styles.chipLabel, values.intensity === opt.value && styles.chipLabelActive]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          ))}
         </View>
 
         <Text style={styles.summary}>

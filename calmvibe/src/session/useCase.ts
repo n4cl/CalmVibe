@@ -40,6 +40,19 @@ export class SessionUseCase {
     this.startedAt = Date.now();
     const wrappedListener = this.wrapListener(listener);
 
+    const intensityToMs = (intensity: SettingsValues['intensity']) => {
+      switch (intensity) {
+        case 'low':
+          return 80;
+        case 'strong':
+          return 250;
+        case 'medium':
+        default:
+          return 150;
+      }
+    };
+    const pulseMs = intensityToMs(settings.intensity);
+
     const config =
       input.mode === 'VIBRATION'
         ? {
@@ -47,7 +60,7 @@ export class SessionUseCase {
             bpm: settings.bpm,
             durationSec,
             visualEnabled: true,
-            vibrationPattern: [50], // 50ms パルス
+            vibrationPattern: [pulseMs],
           }
         : {
             mode: 'BREATH' as const,
@@ -58,7 +71,7 @@ export class SessionUseCase {
               holdMs: settings.breath.type === 'three-phase' ? settings.breath.holdSec * 1000 : undefined,
               exhaleMs: settings.breath.exhaleSec * 1000,
               cycles: settings.breath.cycles === null ? null : settings.breath.cycles,
-              haptics: { pattern: [50] },
+              haptics: { pattern: [pulseMs] },
             },
           };
 

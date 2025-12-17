@@ -66,6 +66,25 @@ describe('SessionUseCase start/stop', () => {
     );
   });
 
+  it('強度設定に応じて振動パターンが変わる', async () => {
+    const { guidance, sessionRepo, startGuidance } = createMocks();
+    // low 強度の設定を返す
+    const settingsRepo: SettingsRepository = {
+      get: jest.fn().mockResolvedValue({
+        ...defaultSettings,
+        intensity: 'low',
+      }),
+      save: jest.fn(),
+    };
+    const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
+
+    await useCase.start({ mode: 'VIBRATION' });
+    expect(startGuidance).toHaveBeenCalledWith(
+      expect.objectContaining({ vibrationPattern: [80] }),
+      expect.any(Object)
+    );
+  });
+
   it('二重開始を防ぎ、not_activeでstopを拒否する', async () => {
     const { guidance, settingsRepo, sessionRepo, startGuidance } = createMocks();
     const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);

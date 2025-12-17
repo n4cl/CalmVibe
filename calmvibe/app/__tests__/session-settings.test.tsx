@@ -36,7 +36,6 @@ describe('SessionScreen settings (vibration only)', () => {
 
     await findByText('BPM: 60');
     await findByText('時間: 180秒');
-    await findByText('強度: 中');
   });
 
   it('BPMを変更して保存すると再描画後も値が保持される', async () => {
@@ -84,17 +83,7 @@ describe('SessionScreen breath settings', () => {
   });
 
   it('呼吸カードから強度を変更して保存すると次回も反映される', async () => {
-    const repo = createRepo();
-    const useCase = { start: jest.fn(), stop: jest.fn() } as any;
-    const { getAllByText, findByText, unmount } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
-
-    await findByText('呼吸設定（独立保存）');
-    fireEvent.press(getAllByText('強')[1]);
-    fireEvent.press(getAllByText('保存')[1]);
-
-    unmount();
-    const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
-    await findByText2('強度: 強');
+    // 強度UIを非表示にしたためスキップ
   });
 });
 

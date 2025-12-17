@@ -17,6 +17,7 @@
 - 自動心拍計測や外部デバイス連携。
 - バックグラウンド継続（Expo Go 前面前提）。
 - クラウド同期・共有。
+- 振動強度（振幅）変更 UI／機能（Expo Go では振幅制御不可のため当面非対応、UIも非表示）。
 
 ## Architecture
 
@@ -126,7 +127,7 @@ sequenceDiagram
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
 | 1.1 | BPM保存(40-90) | SessionViewModel, SettingsRepository | SettingsRepository.save/get | 設定 |
-| 1.2 | 強度保存 | SessionViewModel, SettingsRepository | 同上 | 設定 |
+| 1.2 | （廃止）振動強度選択は提供しない | - | - | - |
 | 1.3 | 開始で即時実行・停止まで継続 | SessionUseCase, GuidanceEngine, HapticsAdapter | GuidanceEngine.start/stop | 開始/停止 |
 | 1.4 | 前回設定の自動適用 | SessionViewModel, SettingsRepository | get | 起動時 |
 | 1.5 | 時間設定/無制限 | SessionViewModel, SettingsRepository | save/get | 設定 |
