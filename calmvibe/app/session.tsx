@@ -121,12 +121,15 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
     },
   };
 
+  const resetPhaseForMode = (mode: 'VIBRATION' | 'BREATH') => (mode === 'VIBRATION' ? 'PULSE' : 'INHALE');
+
   const stop = async () => {
     if (runningRef.current === 'none') return;
     await useCase.stop();
     setRunning('none');
     runningRef.current = 'none';
-    setPhase('PULSE');
+    setPhase(resetPhaseForMode(selectedMode));
+    setGuideTick((t) => t + 1);
   };
 
   const start = async () => {
@@ -155,14 +158,24 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
       <View style={styles.modeRow}>
         <Pressable
           style={[styles.modeChip, selectedMode === 'VIBRATION' && styles.modeChipActive]}
-          onPress={() => running === 'none' && setSelectedMode('VIBRATION')}
+          onPress={() => {
+            if (running !== 'none' && running !== 'vibration') return;
+            setSelectedMode('VIBRATION');
+            setPhase(resetPhaseForMode('VIBRATION'));
+            setGuideTick((t) => t + 1);
+          }}
           disabled={running !== 'none' && running !== 'vibration'}
         >
           <Text style={[styles.modeLabel, selectedMode === 'VIBRATION' && styles.modeLabelActive]}>振動ガイド</Text>
         </Pressable>
         <Pressable
           style={[styles.modeChip, selectedMode === 'BREATH' && styles.modeChipActive]}
-          onPress={() => running === 'none' && setSelectedMode('BREATH')}
+          onPress={() => {
+            if (running !== 'none' && running !== 'breath') return;
+            setSelectedMode('BREATH');
+            setPhase(resetPhaseForMode('BREATH'));
+            setGuideTick((t) => t + 1);
+          }}
           disabled={running !== 'none' && running !== 'breath'}
         >
           <Text style={[styles.modeLabel, selectedMode === 'BREATH' && styles.modeLabelActive]}>呼吸ガイド</Text>
@@ -172,6 +185,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
         phase={phase}
         tick={guideTick}
         paused={running === 'none'}
+        mode={selectedMode}
         phaseDurations={
           running === 'breath' && values
             ? {

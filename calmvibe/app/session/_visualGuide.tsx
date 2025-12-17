@@ -10,22 +10,24 @@ type Props = {
   testID?: string;
   accessibilityLabel?: string;
   paused?: boolean;
+  mode?: 'VIBRATION' | 'BREATH';
 };
 
 const maxScale = 1.12;
-const minScaleBreath = 0.6; // 吐き切り感をさらに強調
+const minScaleBreath = 0.5; // 吐き切り感をさらに強調（より小さく）
 const minScalePulse = 0.9;
 // 振動ガイドの最大スケールに合わせる
 const pulseSeq = { seq: [minScalePulse, maxScale, 1], durations: [160, 140, 140] };
 
-export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibilityLabel, paused }: Props) => {
+export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibilityLabel, paused, mode }: Props) => {
   const scale = useRef(new Animated.Value(minScaleBreath)).current;
   const currentScale = useRef(minScaleBreath);
 
   useEffect(() => {
     if (paused) {
-      scale.setValue(minScalePulse);
-      currentScale.current = minScalePulse;
+      const standby = mode === 'BREATH' ? minScaleBreath : minScalePulse;
+      scale.setValue(standby);
+      currentScale.current = standby;
       return;
     }
 
@@ -49,6 +51,9 @@ export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibi
 
     switch (phase) {
       case 'INHALE':
+        // 呼吸開始時は最小から最大へ
+        scale.setValue(minScaleBreath);
+        currentScale.current = minScaleBreath;
         // 吸う時間いっぱいで最大値に到達
         runSeq([maxScale], [inhaleMs]);
         break;
@@ -65,7 +70,7 @@ export const VisualGuide = ({ phase, tick = 0, phaseDurations, testID, accessibi
         runSeq(pulseSeq.seq, pulseSeq.durations);
         break;
     }
-  }, [phase, phaseDurations, scale, tick, paused]);
+  }, [phase, phaseDurations, scale, tick, paused, mode]);
 
   const color = phase === 'HOLD' ? '#d8def7' : '#b8e1ff';
 
