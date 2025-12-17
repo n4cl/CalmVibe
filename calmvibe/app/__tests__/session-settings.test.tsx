@@ -34,6 +34,7 @@ describe('SessionScreen settings (vibration only)', () => {
     const useCase = { start: jest.fn(), stop: jest.fn() } as any;
     const { findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
+    await findByText('振動ガイド');
     await findByText('BPM: 60');
     await findByText('時間: 180秒');
   });
@@ -59,8 +60,10 @@ describe('SessionScreen breath settings', () => {
   it('デフォルトの呼吸プリセットを表示する', async () => {
     const repo = createRepo();
     const useCase = { start: jest.fn(), stop: jest.fn() } as any;
-    const { findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    const { findByText, getByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
+    await findByText('呼吸ガイド');
+    fireEvent.press(getByText('呼吸ガイド'));
     await findByText('呼吸プリセット: 吸4-吐4 (5回)');
   });
 
@@ -69,6 +72,8 @@ describe('SessionScreen breath settings', () => {
     const useCase = { start: jest.fn(), stop: jest.fn() } as any;
     const { getByText, getAllByText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
+    await findByText('呼吸ガイド');
+    fireEvent.press(getByText('呼吸ガイド'));
     await findByText('呼吸設定（独立保存）');
 
     fireEvent.press(getByText('4-4 (5回)'));
@@ -78,7 +83,9 @@ describe('SessionScreen breath settings', () => {
     fireEvent.press(getByText('保存'));
 
     // 再描画しても変更が保持されること
-    const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    const { findByText: findByText2, getByText: getByText2 } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    await findByText2('呼吸ガイド');
+    fireEvent.press(getByText2('呼吸ガイド'));
     await findByText2('呼吸プリセット: 吸5-吐4 (5回)');
   });
 
@@ -110,7 +117,7 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
     expect(queryByTestId('visual-guide')).toBeNull();
 
     await act(async () => {
-      fireEvent.press(getByText('開始（振動）'));
+      fireEvent.press(getByText('開始'));
     });
     expect(useCase.start).toHaveBeenCalledWith({ mode: 'VIBRATION' }, expect.any(Object));
     act(() => {
@@ -133,8 +140,10 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
 
     await findByText('セッション開始');
 
+    fireEvent.press(getByText('呼吸ガイド'));
+
     await act(async () => {
-      fireEvent.press(getByText('開始（呼吸）'));
+      fireEvent.press(getByText('開始'));
     });
     expect(useCase.start).toHaveBeenCalledWith({ mode: 'BREATH' }, expect.any(Object));
     act(() => {

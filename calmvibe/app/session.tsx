@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { VisualGuide, GuidePhase } from './session/_visualGuide';
-import { SettingsRepository, SettingsValues, VibrationIntensity, BreathPattern } from '../src/settings/types';
+import { SettingsRepository, SettingsValues, BreathPattern } from '../src/settings/types';
 import { SqliteSettingsRepository } from '../src/settings/sqliteRepository';
 import { GuidanceListener, SimpleGuidanceEngine, ExpoHapticsAdapter } from '../src/guidance';
 import { SessionUseCase } from '../src/session/useCase';
@@ -36,6 +36,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
   const [phase, setPhase] = useState<GuidePhase>('PULSE');
   const [guideTick, setGuideTick] = useState(0);
   const runningRef = React.useRef<'none' | 'vibration' | 'breath'>('none');
+  const [selectedMode, setSelectedMode] = useState<'VIBRATION' | 'BREATH'>('VIBRATION');
 
   useEffect(() => {
     let mounted = true;
@@ -128,23 +129,14 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
     setPhase('PULSE');
   };
 
-  const startVibration = async () => {
-    if (!values) return;
-    const res = await useCase.start({ mode: 'VIBRATION' }, listener);
+  const start = async () => {
+    if (!values || runningRef.current !== 'none') return;
+    const res = await useCase.start({ mode: selectedMode }, listener);
     if (res.ok) {
-      setRunning('vibration');
-      runningRef.current = 'vibration';
-      setPhase('PULSE');
-    }
-  };
-
-  const startBreath = async () => {
-    if (!values) return;
-    const res = await useCase.start({ mode: 'BREATH' }, listener);
-    if (res.ok) {
-      setRunning('breath');
-      runningRef.current = 'breath';
-      setPhase('INHALE');
+      const runMode = selectedMode === 'VIBRATION' ? 'vibration' : 'breath';
+      setRunning(runMode);
+      runningRef.current = runMode;
+      setPhase(selectedMode === 'VIBRATION' ? 'PULSE' : 'INHALE');
     }
   };
 
@@ -160,6 +152,22 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>セッション開始</Text>
+      <View style={styles.modeRow}>
+        <Pressable
+          style={[styles.modeChip, selectedMode === 'VIBRATION' && styles.modeChipActive]}
+          onPress={() => running === 'none' && setSelectedMode('VIBRATION')}
+          disabled={running !== 'none' && running !== 'vibration'}
+        >
+          <Text style={[styles.modeLabel, selectedMode === 'VIBRATION' && styles.modeLabelActive]}>振動ガイド</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.modeChip, selectedMode === 'BREATH' && styles.modeChipActive]}
+          onPress={() => running === 'none' && setSelectedMode('BREATH')}
+          disabled={running !== 'none' && running !== 'breath'}
+        >
+          <Text style={[styles.modeLabel, selectedMode === 'BREATH' && styles.modeLabelActive]}>呼吸ガイド</Text>
+        </Pressable>
+      </View>
       {running !== 'none' && (
         <VisualGuide
           phase={phase}
@@ -179,11 +187,16 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
       )}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Pressable style={[styles.saveButton, running === 'vibration' && styles.previewActive]} onPress={startVibration}>
-            <Text style={styles.saveLabel}>開始（振動）</Text>
-          </Pressable>
-          <Pressable style={[styles.saveButton, running === 'breath' && styles.previewActive]} onPress={startBreath}>
-            <Text style={styles.saveLabel}>開始（呼吸）</Text>
+          <Pressable
+            style={[
+              styles.saveButton,
+              running !== 'none' && styles.saveButtonDisabled,
+              running !== 'none' && styles.previewActive,
+            ]}
+            onPress={start}
+            disabled={running !== 'none'}
+          >
+            <Text style={styles.saveLabel}>開始</Text>
           </Pressable>
           <Pressable style={[styles.saveButton, running === 'none' && styles.saveButtonDisabled]} onPress={stop} disabled={running === 'none'}>
             <Text style={styles.saveLabel}>停止</Text>
@@ -194,115 +207,121 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
         </Text>
       </View>
 
-      <Text style={styles.title}>セッション設定（振動ガイド）</Text>
-
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Text style={styles.label}>BPM: {values.bpm}</Text>
-          <Pressable style={styles.button} onPress={() => changeBpm(-1)}>
-            <Text style={styles.buttonLabel}>-BPM</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => changeBpm(+1)}>
-            <Text style={styles.buttonLabel}>+BPM</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>
-            時間: {values.durationSec === null ? '∞' : `${values.durationSec}秒`}
-          </Text>
-          {values.durationSec !== null && (
-            <>
-              <Pressable style={styles.button} onPress={() => changeDuration(-30)}>
-                <Text style={styles.buttonLabel}>-時間</Text>
+      {selectedMode === 'VIBRATION' && (
+        <>
+          <Text style={styles.title}>セッション設定（振動ガイド）</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.label}>BPM: {values.bpm}</Text>
+              <Pressable style={styles.button} onPress={() => changeBpm(-1)}>
+                <Text style={styles.buttonLabel}>-BPM</Text>
               </Pressable>
-              <Pressable style={styles.button} onPress={() => changeDuration(+30)}>
-                <Text style={styles.buttonLabel}>+時間</Text>
+              <Pressable style={styles.button} onPress={() => changeBpm(+1)}>
+                <Text style={styles.buttonLabel}>+BPM</Text>
               </Pressable>
-            </>
-          )}
-          <Pressable style={styles.button} onPress={toggleDurationInfinite}>
-            <Text style={styles.buttonLabel}>{values.durationSec === null ? '時間ON' : '∞にする'}</Text>
-          </Pressable>
-        </View>
+            </View>
 
-        <Text style={styles.title}>呼吸設定（独立保存）</Text>
-        <Text style={styles.subTitle}>呼吸プリセット</Text>
-        <View style={styles.row}>
-          {breathPresets.map((preset) => (
-            <Pressable
-              key={preset.label}
-              style={[
-                styles.chip,
-                values.breath.type === preset.pattern.type &&
-                  values.breath.inhaleSec === preset.pattern.inhaleSec &&
-                  ('holdSec' in preset.pattern
-                    ? (values.breath as any).holdSec === (preset.pattern as any).holdSec
-                    : values.breath.type === 'two-phase') &&
-                  values.breath.exhaleSec === preset.pattern.exhaleSec &&
-                  values.breath.cycles === preset.pattern.cycles &&
-                  styles.chipActive,
-              ]}
-              onPress={() => setBreath(preset.pattern)}
-            >
-              <Text style={[styles.chipLabel, values.breath === preset.pattern && styles.chipLabelActive]}>
-                {preset.label}
+            <View style={styles.row}>
+              <Text style={styles.label}>
+                時間: {values.durationSec === null ? '∞' : `${values.durationSec}秒`}
               </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={styles.subTitle}>フェーズ秒数</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>吸: {values.breath.inhaleSec}s</Text>
-          <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', -1)}>
-            <Text style={styles.buttonLabel}>吸-</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', +1)}>
-            <Text style={styles.buttonLabel}>吸+</Text>
-          </Pressable>
-        </View>
-        {values.breath.type === 'three-phase' && (
-          <View style={styles.row}>
-            <Text style={styles.label}>止: {values.breath.holdSec}s</Text>
-            <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', -1)}>
-              <Text style={styles.buttonLabel}>止-</Text>
-            </Pressable>
-            <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', +1)}>
-              <Text style={styles.buttonLabel}>止+</Text>
-            </Pressable>
+              {values.durationSec !== null && (
+                <>
+                  <Pressable style={styles.button} onPress={() => changeDuration(-30)}>
+                    <Text style={styles.buttonLabel}>-時間</Text>
+                  </Pressable>
+                  <Pressable style={styles.button} onPress={() => changeDuration(+30)}>
+                    <Text style={styles.buttonLabel}>+時間</Text>
+                  </Pressable>
+                </>
+              )}
+              <Pressable style={styles.button} onPress={toggleDurationInfinite}>
+                <Text style={styles.buttonLabel}>{values.durationSec === null ? '時間ON' : '∞にする'}</Text>
+              </Pressable>
+            </View>
           </View>
-        )}
-        <View style={styles.row}>
-          <Text style={styles.label}>吐: {values.breath.exhaleSec}s</Text>
-          <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', -1)}>
-            <Text style={styles.buttonLabel}>吐-</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', +1)}>
-            <Text style={styles.buttonLabel}>吐+</Text>
-          </Pressable>
-        </View>
+        </>
+      )}
 
-        <View style={styles.row}>
-          <Text style={styles.label}>サイクル: {values.breath.cycles === null ? '∞' : `${values.breath.cycles}回`}</Text>
-          <Pressable style={styles.button} onPress={() => changeCycles(-1)}>
-            <Text style={styles.buttonLabel}>-回</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => changeCycles(+1)}>
-            <Text style={styles.buttonLabel}>+回</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => changeCycles('inf')}>
-            <Text style={styles.buttonLabel}>∞にする</Text>
-          </Pressable>
-        </View>
+      {selectedMode === 'BREATH' && (
+        <>
+          <Text style={styles.title}>呼吸設定（独立保存）</Text>
+          <View style={styles.card}>
+            <Text style={styles.subTitle}>呼吸プリセット</Text>
+            <View style={styles.row}>
+              {breathPresets.map((preset) => (
+                <Pressable
+                  key={preset.label}
+                  style={[
+                    styles.chip,
+                    values.breath.type === preset.pattern.type &&
+                      values.breath.inhaleSec === preset.pattern.inhaleSec &&
+                      ('holdSec' in preset.pattern
+                        ? (values.breath as any).holdSec === (preset.pattern as any).holdSec
+                        : values.breath.type === 'two-phase') &&
+                      values.breath.exhaleSec === preset.pattern.exhaleSec &&
+                      values.breath.cycles === preset.pattern.cycles &&
+                      styles.chipActive,
+                  ]}
+                  onPress={() => setBreath(preset.pattern)}
+                >
+                  <Text style={[styles.chipLabel, values.breath === preset.pattern && styles.chipLabelActive]}>
+                    {preset.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
-        <Text style={styles.summary}>
-          呼吸プリセット: {values.breath.type === 'three-phase' ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}` : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`} ({values.breath.cycles ? `${values.breath.cycles}回` : '∞'})
-        </Text>
+            <Text style={styles.subTitle}>フェーズ秒数</Text>
+            <View style={styles.row}>
+              <Text style={styles.label}>吸: {values.breath.inhaleSec}s</Text>
+              <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', -1)}>
+                <Text style={styles.buttonLabel}>吸-</Text>
+              </Pressable>
+              <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', +1)}>
+                <Text style={styles.buttonLabel}>吸+</Text>
+              </Pressable>
+            </View>
+            {values.breath.type === 'three-phase' && (
+              <View style={styles.row}>
+                <Text style={styles.label}>止: {values.breath.holdSec}s</Text>
+                <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', -1)}>
+                  <Text style={styles.buttonLabel}>止-</Text>
+                </Pressable>
+                <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', +1)}>
+                  <Text style={styles.buttonLabel}>止+</Text>
+                </Pressable>
+              </View>
+            )}
+            <View style={styles.row}>
+              <Text style={styles.label}>吐: {values.breath.exhaleSec}s</Text>
+              <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', -1)}>
+                <Text style={styles.buttonLabel}>吐-</Text>
+              </Pressable>
+              <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', +1)}>
+                <Text style={styles.buttonLabel}>吐+</Text>
+              </Pressable>
+            </View>
 
-        {/* 保存は画面下部に統一ボタンを配置するため、ここでは表示しない */}
+            <View style={styles.row}>
+              <Text style={styles.label}>サイクル: {values.breath.cycles === null ? '∞' : `${values.breath.cycles}回`}</Text>
+              <Pressable style={styles.button} onPress={() => changeCycles(-1)}>
+                <Text style={styles.buttonLabel}>-回</Text>
+              </Pressable>
+              <Pressable style={styles.button} onPress={() => changeCycles(+1)}>
+                <Text style={styles.buttonLabel}>+回</Text>
+              </Pressable>
+              <Pressable style={styles.button} onPress={() => changeCycles('inf')}>
+                <Text style={styles.buttonLabel}>∞にする</Text>
+              </Pressable>
+            </View>
 
-      </View>
+            <Text style={styles.summary}>
+              呼吸プリセット: {values.breath.type === 'three-phase' ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}` : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`} ({values.breath.cycles ? `${values.breath.cycles}回` : '∞'})
+            </Text>
+          </View>
+        </>
+      )}
 
       {/* 全設定を一括保存する共通ボタン */}
       <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
@@ -327,6 +346,11 @@ const styles = StyleSheet.create({
   chipLabel: { fontSize: 14, color: '#333' },
   chipLabelActive: { color: '#1746b4', fontWeight: '700' },
   summary: { marginTop: 6, fontSize: 13, color: '#222' },
+  modeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  modeChip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff' },
+  modeChipActive: { borderColor: '#2563eb', backgroundColor: '#e8f1ff' },
+  modeLabel: { fontSize: 14, color: '#111' },
+  modeLabelActive: { color: '#1746b4', fontWeight: '700' },
   saveButton: { marginTop: 12, paddingVertical: 12, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center' },
   saveButtonDisabled: { opacity: 0.6 },
   saveLabel: { color: '#fff', fontWeight: '700' },
