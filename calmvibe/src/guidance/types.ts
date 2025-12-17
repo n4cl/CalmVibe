@@ -38,4 +38,5 @@ export interface GuidanceEngine {
   startGuidance(config: GuidanceConfig, listener?: GuidanceListener): Promise<Result>;
   stopGuidance(): Promise<Result>;
   isActive(): boolean;
+  updateVibrationBpm?(bpm: number): Promise<Result>;
 }

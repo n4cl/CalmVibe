@@ -22,6 +22,7 @@ export class SessionUseCase {
   private sessionRepo: SessionRepository;
   private active = false;
   private startedAt: number | null = null;
+  private currentMode: StartInput['mode'] | null = null;
 
   constructor(guidance: GuidanceEngine, settingsRepo: SettingsRepository, sessionRepo: SessionRepository) {
     this.guidance = guidance;
@@ -78,6 +79,7 @@ export class SessionUseCase {
     const res = await this.guidance.startGuidance(config, wrappedListener);
     if (!res.ok) return res;
     this.active = true;
+    this.currentMode = input.mode;
     return { ok: true };
   }
 
@@ -85,6 +87,7 @@ export class SessionUseCase {
     if (!this.active) return { ok: false, error: 'not_active' };
     await this.guidance.stopGuidance();
     this.active = false;
+    this.currentMode = null;
     return { ok: true };
   }
 
@@ -106,7 +109,14 @@ export class SessionUseCase {
     await this.sessionRepo.save(record);
     this.active = false;
     this.startedAt = null;
+    this.currentMode = null;
     return { ok: true };
+  }
+
+  async updateVibrationBpm(bpm: number): Promise<Result> {
+    if (!this.active || this.currentMode !== 'VIBRATION') return { ok: false, error: 'not_vibration_active' };
+    if (typeof this.guidance.updateVibrationBpm !== 'function') return { ok: false, error: 'unsupported' };
+    return await this.guidance.updateVibrationBpm(bpm);
   }
 
   private wrapListener(listener?: GuidanceListener): GuidanceListener | undefined {

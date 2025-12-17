@@ -15,6 +15,7 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
   private startAt = 0;
   private intervalMs = 0;
   private durationMs = 0;
+  private currentConfig?: GuidanceConfig;
 
   constructor(adapter: HapticsAdapter) {
     this.adapter = adapter;
@@ -31,6 +32,7 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
     this.active = true;
     this.startAt = Date.now();
     this.durationMs = config.durationSec * 1000;
+    this.currentConfig = { ...config };
 
     if (config.mode === 'VIBRATION') {
       if (!config.bpm || config.bpm <= 0) return { ok: false, error: 'invalid_bpm' };
@@ -133,5 +135,25 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
     this.endTimer = null;
     this.timer = null;
     this.active = false;
+    this.currentConfig = undefined;
+  }
+
+  async updateVibrationBpm(bpm: number): Promise<Result> {
+    if (!this.active || !this.currentConfig || this.currentConfig.mode !== 'VIBRATION') {
+      return { ok: false, error: 'not_vibration_active' };
+    }
+    if (bpm <= 0) return { ok: false, error: 'invalid_bpm' };
+    this.intervalMs = Math.max(10, Math.round(60000 / bpm));
+    this.currentConfig.bpm = bpm;
+    if (this.timer) clearTimeout(this.timer);
+    const elapsed = Date.now() - this.startAt;
+    if (elapsed >= this.durationMs) {
+      this.stopInternal();
+      this.listener?.onComplete?.();
+      return { ok: true };
+    }
+    const plannedNext = Date.now() + this.intervalMs;
+    this.loopVibration(this.currentConfig, plannedNext);
+    return { ok: true };
   }
 }

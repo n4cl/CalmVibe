@@ -56,6 +56,9 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
     if (!values) return;
     const next = Math.min(90, Math.max(40, values.bpm + delta));
     setValues({ ...values, bpm: next });
+    if (runningRef.current === 'vibration') {
+      void useCase.updateVibrationBpm?.(next);
+    }
   };
 
   const changeDuration = (delta: number) => {
