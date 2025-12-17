@@ -1,32 +1,39 @@
-# CalmVibe — 開発メモ（2025-12 時点）
+# CalmVibe 開発用 README
 
-## 主要機能
-- セッション画面で心拍ガイド／呼吸ガイドを即時開始・停止。
-- 呼吸ガイドは吸・止・吐のフェーズ時間に合わせて円アニメが連続再生。
-- 設定は SQLite 永続化（Web/テストはメモリフォールバック）。
-- 心拍ガイド: Expo Haptics + Androidは `Vibration` 併用で確実に鳴動（強度UIは非表示）。
+開発者向けのセットアップ・運用メモです。アプリ概要はリポジトリルートの `README.md` を参照してください。
 
 ## セットアップ
-- 依存インストール: `npm install`
-- 使用パッケージ: expo-haptics / expo-sqlite / expo-keep-awake / expo-router / @testing-library/react-native
+```bash
+cd calmvibe
+npm install
+```
 
-## 実行
+## 開発・実行
 - 開発サーバー: `npm run start`
 - Android 実機: `npm run android`
 - Web: `npm run web`
 - Lint: `npm run lint`
 - テスト: `npm test -- --runInBand`
 
-## 画面構成（現在）
-- session: セッション開始・停止、視覚呼吸ガイド、心拍ガイド
-- logs: 履歴（未実装タスク 5.x）
-- settings: 独立画面は未分離。セッション内で設定編集・保存を実施。
+## 技術スタック
+- Expo (React Native) / TypeScript
+- expo-router（タブ: session / logs）
+- expo-haptics（Android は Vibration 併用、強度UIなし）
+- expo-sqlite（Web/テストはメモリフォールバック）
+- @testing-library/react-native + Jest
+
+## 仕様ドキュメント
+- `.kiro/specs/calm-heart-rate-app/requirements.md`
+- `.kiro/specs/calm-heart-rate-app/design.md`
+- `.kiro/specs/calm-heart-rate-app/tasks.md`
 
 ## 実装メモ
-- ハプティクス強度はハード依存のため UI からは非表示。今は固定パターンで鳴動。
-- 呼吸アニメ: 最小スケールから開始し、吸で最大、吐で最小まで変化。
-- SessionUseCase は GuidanceEngine を介して設定値を反映し、onComplete/onStopで状態リセット。
+- 心拍ガイド: 実行中にBPM変更を即時反映（GuidanceEngine.updateVibrationBpm）
+- 呼吸ガイド: 最小スケールから吸→最大、吐→最小のアニメ。同フェーズ開始で単発振動。
+- 設定は SQLite に保存。Web/テストはメモリ実装。
 
-## 開発時の注意
-- Expo Go / Dev Build 前提。バックグラウンド常駐は未対応（画面ON想定）。
-- Jest＋@testing-library/react-native で単体/UI テスト。`jest.setup.js` に Expo 用ポリフィルを設定。
+## 未完タスクの主なもの
+- 5.x 履歴一覧・詳細
+- 6.x バリデーション／フォールバック
+- 7.x テスト拡充
+- 8.2-8.4 ナビ初期タブ・最新順・状態保持
