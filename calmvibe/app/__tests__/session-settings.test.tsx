@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent, cleanup, act } from '@testing-library/react-native';
 import SessionScreen from '../session';
 import { SettingsRepository, SettingsValues, defaultSettings } from '../../src/settings/types';
+import { GuidanceListener } from '../../src/guidance';
 
 jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Heavy: 'Heavy', Medium: 'Medium' },
@@ -31,7 +32,7 @@ const createRepo: RepoFactory = () => {
 describe('SessionScreen settings (vibration only)', () => {
   it('デフォルト設定を表示する', async () => {
     const repo = createRepo();
-    const useCase = { start: jest.fn(), stop: jest.fn() } as any;
+    const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
     const { findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
     await findByText('心拍ガイド');
@@ -41,7 +42,7 @@ describe('SessionScreen settings (vibration only)', () => {
 
   it('BPMを変更して保存すると再描画後も値が保持される', async () => {
     const repo = createRepo();
-    const useCase = { start: jest.fn(), stop: jest.fn() } as any;
+    const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
     const { getAllByText, findByText, getByText, unmount } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
     await findByText('BPM: 60');
@@ -59,7 +60,7 @@ describe('SessionScreen settings (vibration only)', () => {
 describe('SessionScreen breath settings', () => {
   it('デフォルトの呼吸プリセットを表示する', async () => {
     const repo = createRepo();
-    const useCase = { start: jest.fn(), stop: jest.fn() } as any;
+    const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
     const { findByText, getByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
     await findByText('呼吸ガイド');
@@ -69,7 +70,7 @@ describe('SessionScreen breath settings', () => {
 
   it('プリセットボタンで呼吸パターンが更新され保存できる', async () => {
     const repo = createRepo();
-    const useCase = { start: jest.fn(), stop: jest.fn() } as any;
+    const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
     const { getByText, getAllByText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
     await findByText('呼吸ガイド');
@@ -103,6 +104,8 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
         return { ok: true };
       }),
       stop: jest.fn(async () => ({ ok: true })),
+      complete: jest.fn(async () => ({ ok: true })),
+      updateVibrationBpm: jest.fn(async () => ({ ok: true })),
       emitStep: (phase: any, cycle = 0) => listener?.onStep?.({ elapsedSec: cycle, cycle, phase }),
       emitComplete: () => listener?.onComplete?.(),
     };
@@ -153,5 +156,47 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
       useCase.emitComplete();
     });
     expect(queryByTestId('visual-guide')?.props.accessibilityLabel).toBe('待機中');
+  });
+});
+
+describe('SessionScreen manual record modal', () => {
+  const createUseCaseMock = () => ({
+    start: jest.fn(async () => ({ ok: true })),
+    stop: jest.fn(async () => ({ ok: true })),
+    complete: jest.fn(async () => ({ ok: true })),
+    updateVibrationBpm: jest.fn(async () => ({ ok: true })),
+  });
+
+  it('記録ボタンでモーダルを開き、心拍ガイド時はBPMを表示する', async () => {
+    const repo = createRepo();
+    const useCase = createUseCaseMock();
+    const { getByText, getAllByText, findByTestId, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase as any} />);
+
+    await findByText('セッション開始');
+    await findByTestId('visual-guide');
+    await act(async () => {
+      fireEvent.press(getByText('開始'));
+    });
+    fireEvent.press(getByText('記録する'));
+
+    const modal = await findByTestId('record-modal');
+    expect(modal).toBeTruthy();
+    // モーダル内のBPM表示を確認（複数箇所に出るので最初の一致を参照）
+    const bpmTexts = getAllByText(/BPM: 60/);
+    expect(bpmTexts.length).toBeGreaterThan(0);
+  });
+
+  it('停止中に記録ボタンを押すと空の入力で開く', async () => {
+    const repo = createRepo();
+    const useCase = createUseCaseMock();
+    const { getByText, findByTestId, getByLabelText, findByText, queryAllByLabelText } = render(<SessionScreen settingsRepo={repo} useCase={useCase as any} />);
+
+    await findByText('セッション開始');
+    fireEvent.press(getByText('記録する'));
+    await findByTestId('record-modal');
+    const preHrInput = getByLabelText('preHr-input');
+    expect(preHrInput.props.value).toBe('');
+    // 改善は未選択なので星はすべて非アクティブ
+    expect(queryAllByLabelText(/改善[1-5]/).length).toBe(5);
   });
 });

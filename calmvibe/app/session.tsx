@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { VisualGuide, GuidePhase } from './session/_visualGuide';
 import { SettingsRepository, SettingsValues, BreathPattern } from '../src/settings/types';
 import { SqliteSettingsRepository } from '../src/settings/sqliteRepository';
@@ -37,6 +37,15 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
   const [guideTick, setGuideTick] = useState(0);
   const runningRef = React.useRef<'none' | 'vibration' | 'breath'>('none');
   const [selectedMode, setSelectedMode] = useState<'VIBRATION' | 'BREATH'>('VIBRATION');
+  const [recordVisible, setRecordVisible] = useState(false);
+  const [recordDraft, setRecordDraft] = useState<{
+    guideType: 'VIBRATION' | 'BREATH';
+    bpm?: number;
+    preHr?: string;
+    postHr?: string;
+    improvement?: string;
+    breathSummary?: string;
+  } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -222,6 +231,31 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
             <Text style={styles.saveLabel}>停止</Text>
           </Pressable>
         </View>
+        <View style={styles.recordRow}>
+          <Pressable
+            style={styles.recordButton}
+            onPress={() => {
+              const mode = runningRef.current === 'vibration' ? 'VIBRATION' : runningRef.current === 'breath' ? 'BREATH' : selectedMode;
+              const draft = {
+                guideType: mode,
+                bpm: mode === 'VIBRATION' ? values?.bpm : undefined,
+                breathSummary:
+                  mode === 'BREATH' && values
+                    ? values.breath.type === 'three-phase'
+                      ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}`
+                      : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`
+                    : undefined,
+                preHr: '',
+                postHr: '',
+                improvement: '',
+              };
+              setRecordDraft(draft);
+              setRecordVisible(true);
+            }}
+          >
+            <Text style={styles.recordLabel}>記録する</Text>
+          </Pressable>
+        </View>
         <Text style={styles.summary}>
           状態: {running === 'none' ? '停止中' : running === 'vibration' ? '心拍ガイド実行中' : '呼吸ガイド実行中'}
         </Text>
@@ -344,6 +378,78 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
       <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
         <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
       </Pressable>
+
+      {recordVisible && recordDraft && (
+        <View style={styles.modalBackdrop} testID="record-modal">
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>セッション記録</Text>
+            <Text style={styles.modalMeta}>ガイド: {recordDraft.guideType === 'VIBRATION' ? '心拍ガイド' : '呼吸ガイド'}</Text>
+            {recordDraft.bpm !== undefined && <Text style={styles.modalMeta}>BPM: {recordDraft.bpm}</Text>}
+            {recordDraft.breathSummary && <Text style={styles.modalMeta}>呼吸: {recordDraft.breathSummary}</Text>}
+
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>開始心拍</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="number-pad"
+                accessibilityLabel="preHr-input"
+                value={recordDraft.preHr}
+                onChangeText={(t) => setRecordDraft((d) => (d ? { ...d, preHr: t } : d))}
+              />
+            </View>
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>終了心拍</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="number-pad"
+                accessibilityLabel="postHr-input"
+                value={recordDraft.postHr}
+                onChangeText={(t) => setRecordDraft((d) => (d ? { ...d, postHr: t } : d))}
+              />
+            </View>
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>改善</Text>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((v) => {
+                  const active = Number(recordDraft.improvement ?? 0) >= v;
+                  return (
+                    <Pressable
+                      key={v}
+                      accessibilityLabel={`改善${v}`}
+                      onPress={() => setRecordDraft((d) => (d ? { ...d, improvement: String(v) } : d))}
+                    >
+                      <Text style={active ? styles.starActive : styles.star}>★</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable style={[styles.modalButton, styles.modalCancel]} onPress={() => setRecordVisible(false)}>
+                <Text style={styles.modalButtonLabel}>閉じる</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalSave]}
+                onPress={async () => {
+                  if (!recordDraft) return;
+                  await useCase.complete({
+                    guideType: recordDraft.guideType,
+                    bpm: recordDraft.bpm,
+                    preHr: recordDraft.preHr ? Number(recordDraft.preHr) : undefined,
+                    postHr: recordDraft.postHr ? Number(recordDraft.postHr) : undefined,
+                    improvement: recordDraft.improvement ? Number(recordDraft.improvement) : undefined,
+                    breathConfig: recordDraft.breathSummary,
+                  });
+                  setRecordVisible(false);
+                }}
+              >
+                <Text style={styles.modalButtonLabel}>保存</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -377,4 +483,22 @@ const styles = StyleSheet.create({
   previewLabel: { color: '#1746b4', fontWeight: '700' },
   actionButton: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center' },
   actionButtonDisabled: { opacity: 0.6 },
+  recordRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  recordButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#94a3b8', backgroundColor: '#fff' },
+  recordLabel: { color: '#1f2937', fontWeight: '700' },
+  modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: { width: '100%', backgroundColor: '#fff', borderRadius: 12, padding: 16, gap: 10 },
+  modalTitle: { fontSize: 18, fontWeight: '700' },
+  modalMeta: { fontSize: 14, color: '#374151' },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  inputLabel: { width: 90, fontSize: 14, color: '#111' },
+  input: { flex: 1, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 6 },
+  modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+  modalCancel: { backgroundColor: '#e5e7eb' },
+  modalSave: { backgroundColor: '#2563eb' },
+  modalButtonLabel: { color: '#111', fontWeight: '700' },
+  starsRow: { flexDirection: 'row', gap: 6 },
+  star: { fontSize: 24, color: '#cbd5e1' },
+  starActive: { fontSize: 24, color: '#f59e0b' },
 });
