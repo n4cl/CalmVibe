@@ -46,6 +46,21 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
     improvement?: string;
     breathSummary?: string;
   } | null>(null);
+  const repeatTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopRepeat = () => {
+    if (repeatTimer.current) {
+      clearTimeout(repeatTimer.current);
+      repeatTimer.current = null;
+    }
+  };
+  const startRepeat = (fn: () => void) => {
+    stopRepeat();
+    repeatTimer.current = setTimeout(function tick() {
+      fn();
+      repeatTimer.current = setTimeout(tick, 120);
+    }, 350);
+  };
+  useEffect(() => stopRepeat, []);
 
   useEffect(() => {
     let mounted = true;
@@ -62,24 +77,30 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
   }, [repo]);
 
   const changeBpm = (delta: number) => {
-    if (!values) return;
-    const next = Math.min(90, Math.max(40, values.bpm + delta));
-    setValues({ ...values, bpm: next });
-    if (runningRef.current === 'vibration') {
-      void useCase.updateVibrationBpm?.(next);
-    }
+    setValues((prev) => {
+      if (!prev) return prev;
+      const next = Math.min(90, Math.max(40, prev.bpm + delta));
+      if (runningRef.current === 'vibration') {
+        void useCase.updateVibrationBpm?.(next);
+      }
+      return { ...prev, bpm: next };
+    });
   };
 
   const changeDuration = (delta: number) => {
-    if (!values) return;
-    if (values.durationSec === null) return; // 無制限時はスキップ
-    const next = Math.min(300, Math.max(60, values.durationSec + delta));
-    setValues({ ...values, durationSec: next });
+    setValues((prev) => {
+      if (!prev) return prev;
+      if (prev.durationSec === null) return prev; // 無制限時はスキップ
+      const next = Math.min(300, Math.max(60, prev.durationSec + delta));
+      return { ...prev, durationSec: next };
+    });
   };
 
   const toggleDurationInfinite = () => {
-    if (!values) return;
-    setValues({ ...values, durationSec: values.durationSec === null ? 180 : null });
+    setValues((prev) => {
+      if (!prev) return prev;
+      return { ...prev, durationSec: prev.durationSec === null ? 180 : null };
+    });
   };
 
   const setBreath = (pattern: BreathPattern) => {
@@ -268,10 +289,20 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
           <Text style={styles.subTitle}>心拍ガイド設定</Text>
           <View style={styles.row}>
             <Text style={styles.label}>BPM: {values.bpm}</Text>
-            <Pressable style={styles.button} onPress={() => changeBpm(-1)}>
+            <Pressable
+              style={styles.button}
+              onPress={() => changeBpm(-1)}
+              onPressIn={() => startRepeat(() => changeBpm(-1))}
+              onPressOut={stopRepeat}
+            >
               <Text style={styles.buttonLabel}>-BPM</Text>
             </Pressable>
-            <Pressable style={styles.button} onPress={() => changeBpm(+1)}>
+            <Pressable
+              style={styles.button}
+              onPress={() => changeBpm(+1)}
+              onPressIn={() => startRepeat(() => changeBpm(+1))}
+              onPressOut={stopRepeat}
+            >
               <Text style={styles.buttonLabel}>+BPM</Text>
             </Pressable>
           </View>
@@ -282,10 +313,20 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
             </Text>
             {values.durationSec !== null && (
               <>
-                <Pressable style={styles.button} onPress={() => changeDuration(-30)}>
+                <Pressable
+                  style={styles.button}
+                  onPress={() => changeDuration(-30)}
+                  onPressIn={() => startRepeat(() => changeDuration(-30))}
+                  onPressOut={stopRepeat}
+                >
                   <Text style={styles.buttonLabel}>-時間</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => changeDuration(+30)}>
+                <Pressable
+                  style={styles.button}
+                  onPress={() => changeDuration(+30)}
+                  onPressIn={() => startRepeat(() => changeDuration(+30))}
+                  onPressOut={stopRepeat}
+                >
                   <Text style={styles.buttonLabel}>+時間</Text>
                 </Pressable>
               </>

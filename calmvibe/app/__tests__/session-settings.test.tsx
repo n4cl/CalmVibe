@@ -30,6 +30,9 @@ const createRepo: RepoFactory = () => {
 };
 
 describe('SessionScreen settings (vibration only)', () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+  });
   it('デフォルト設定を表示する', async () => {
     const repo = createRepo();
     const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
@@ -54,6 +57,52 @@ describe('SessionScreen settings (vibration only)', () => {
     unmount();
     const { findByText: findByText2 } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
     await findByText2('BPM: 61');
+  });
+
+  it('BPMの+ボタン長押しで連続加算される', async () => {
+    jest.useFakeTimers();
+    const repo = createRepo();
+    const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
+    const { getByText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    await findByText('BPM: 60');
+
+    const plus = getByText('+BPM');
+    act(() => {
+      fireEvent(plus, 'pressIn');
+      jest.advanceTimersByTime(350); // 長押し判定後に初回1回
+    });
+    expect(getByText('BPM: 61')).toBeTruthy();
+    act(() => {
+      jest.advanceTimersByTime(150); // 次のリピート
+    });
+    expect(getByText('BPM: 62')).toBeTruthy();
+    act(() => {
+      fireEvent(plus, 'pressOut');
+      jest.runAllTimers();
+    });
+  });
+
+  it('時間の+ボタン長押しで30秒刻みで連続加算される', async () => {
+    jest.useFakeTimers();
+    const repo = createRepo();
+    const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
+    const { getByText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    await findByText('時間: 180秒');
+
+    const plus = getByText('+時間');
+    act(() => {
+      fireEvent(plus, 'pressIn');
+      jest.advanceTimersByTime(350);
+    });
+    expect(getByText('時間: 210秒')).toBeTruthy();
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    expect(getByText('時間: 240秒')).toBeTruthy();
+    act(() => {
+      fireEvent(plus, 'pressOut');
+      jest.runAllTimers();
+    });
   });
 });
 
