@@ -56,7 +56,7 @@
   - _Requirements: 2.2,2.3_
 
 - [ ] 5. 履歴一覧・詳細表示
-- [ ] 5.1 履歴一覧（startedAt DESC）
+- [x] 5.1 履歴一覧（startedAt DESC）
   - 各セッションの開始/終了心拍・ガイド種別・主観評価・改善度・breath/BPMを表示する
   - _Requirements: 4.6_
 - [ ] 5.2 履歴詳細
