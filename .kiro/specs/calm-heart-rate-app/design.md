@@ -94,7 +94,7 @@ sequenceDiagram
   SessionTab->>VM: 既存状態を再利用（再読込しない）
 ```
 
-### ガイド開始〜停止〜記録（記録は任意・実行中も可）
+### ガイド開始〜停止〜記録（記録は任意・実行前/中/停止後に可）
 ```mermaid
 sequenceDiagram
   participant User
@@ -118,7 +118,7 @@ sequenceDiagram
     UC->>GE: stopGuidance()
     GE->>Haptics: stop
   end
-  opt 記録する（実行中/停止中どちらでも）
+  opt 記録する（実行前/中/停止後いずれでも）
     User->>Screen: 記録する
     Screen->>VM: complete(input)
     VM->>UC: complete(input)
@@ -236,7 +236,7 @@ interface SessionUseCase {
   complete(input: CompleteInput): Promise<Result>;
 }
 ```
-- **Invariants**: startは非アクティブ時のみ、completeは停止後のみ。breath cycles null=∞ は手動停止またはdurationで終了。
+- **Invariants**: startは非アクティブ時のみ。completeは実行前/中/停止後のいずれでも可能。breath cycles null=∞ は手動停止またはdurationで終了。
 - **Notes**: stop時はGuidanceEngine.stopをawait。保存失敗はResultで返しUIリトライへ。
 
 ### SettingsRepository (Service/State)
