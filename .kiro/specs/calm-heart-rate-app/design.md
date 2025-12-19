@@ -94,7 +94,7 @@ sequenceDiagram
   SessionTab->>VM: 既存状態を再利用（再読込しない）
 ```
 
-### ガイド開始〜停止〜記録
+### ガイド開始〜停止〜記録（記録は任意・実行中も可）
 ```mermaid
 sequenceDiagram
   participant User
@@ -118,8 +118,12 @@ sequenceDiagram
     UC->>GE: stopGuidance()
     GE->>Haptics: stop
   end
-  VM->>UC: complete(input)
-  UC->>Repo: save session_record
+  opt 記録する（実行中/停止中どちらでも）
+    User->>Screen: 記録する
+    Screen->>VM: complete(input)
+    VM->>UC: complete(input)
+    UC->>Repo: save session_record
+  end
 ```
 
 ## Requirements Traceability
@@ -140,7 +144,7 @@ sequenceDiagram
 | 3.1 | 呼吸プリセット保持 | SettingsRepository | save/get | 設定 |
 | 3.2 | 呼吸モード開始 | SessionUseCase, GuidanceEngine | startGuidance | 開始 |
 | 3.3 | モード独立開始 | SessionUseCase | start | 開始 |
-| 4.1-4.6 | 記録と履歴表示 | SessionUseCase, SessionRepository, LogsScreen | complete/save/list | 完了/閲覧 |
+| 4.1-4.5 | 記録と履歴表示 | SessionUseCase, SessionRepository, LogsScreen | complete/save/list | 完了/閲覧 |
 | 5.1 | タブを2つに限定 | TabLayout, SessionTab, LogsTab | tabs config | 起動 |
 | 5.2 | デフォルトでセッション表示 | TabLayout | tabs initial | 起動 |
 | 5.3 | 履歴タブで一覧即表示 | TabLayout, LogsScreen | tabs route | ナビ |
@@ -224,7 +228,7 @@ interface GuidanceEngine {
 type StartInput = { mode: 'VIBRATION'|'BREATH' };
 type CompleteInput = {
   preHr?: number; postHr?: number; guideType: 'VIBRATION'|'BREATH';
-  comfort?: number; improvement?: number; breath?: BreathPattern; bpm?: number;
+  improvement?: number; breath?: BreathPattern; bpm?: number;
 };
 interface SessionUseCase {
   start(input: StartInput): Promise<Result>;
@@ -258,7 +262,6 @@ type SessionRecord = {
   bpm?: number;
   preHr?: number;
   postHr?: number;
-  comfort?: number;
   improvement?: number;
   breathConfig?: BreathPattern;
 };
@@ -278,12 +281,12 @@ interface SessionRepository {
 
 ### Domain Model
 - GuidanceSettings: bpm, durationSec, intensity, breath(BreathPattern)。
-- SessionRecord: id, startedAt, endedAt, guideType, bpm?, breathConfig?, pre/postHr?, comfort?, improvement?.
+- SessionRecord: id, startedAt, endedAt, guideType, bpm?, breathConfig?, pre/postHr?, improvement?.
 - Invariants: cycles null=∞、durationSec null=∞（手動停止必須）。
 
 ### Logical Data Model
 - `settings`(id=1, bpm INT, durationSec INT NULL, intensity TEXT, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
-- `session_records`(id PK, startedAt TEXT, endedAt TEXT, guideType TEXT, bpm INT NULL, preHr INT NULL, postHr INT NULL, comfort INT NULL, improvement INT NULL, breathConfig TEXT NULL, notes TEXT NULL)
+- `session_records`(id PK, startedAt TEXT, endedAt TEXT, guideType TEXT, bpm INT NULL, preHr INT NULL, postHr INT NULL, improvement INT NULL, breathConfig TEXT NULL, notes TEXT NULL)
 - Index: startedAt DESC。
 
 ## Error Handling

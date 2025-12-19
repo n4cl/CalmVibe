@@ -12,7 +12,6 @@ const records: SessionRecord[] = [
     bpm: 60,
     preHr: 85,
     postHr: 70,
-    comfort: 4,
     improvement: 3,
     breathConfig: undefined,
   },
@@ -23,7 +22,6 @@ const records: SessionRecord[] = [
     guideType: 'BREATH',
     preHr: 90,
     postHr: 75,
-    comfort: 3,
     improvement: 2,
     breathConfig: { inhaleSec: 4, exhaleSec: 4 },
   },
@@ -63,8 +61,7 @@ describe('LogsScreen', () => {
     expect(getByText(/開始心拍: 85/)).toBeTruthy();
     expect(getByText(/終了心拍: 70/)).toBeTruthy();
 
-    // 体感・改善度
-    expect(queryAllByText(/体感:/).length).toBeGreaterThan(0);
+    // 改善度
     expect(queryAllByText(/改善:/).length).toBeGreaterThan(0);
   });
 

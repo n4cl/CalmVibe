@@ -21,7 +21,6 @@ export class SqliteSessionRepository implements SessionRepository {
         bpm INTEGER NULL,
         preHr INTEGER NULL,
         postHr INTEGER NULL,
-        comfort INTEGER NULL,
         improvement INTEGER NULL,
         breathConfig TEXT NULL,
         notes TEXT NULL
@@ -32,8 +31,8 @@ export class SqliteSessionRepository implements SessionRepository {
 
   async save(record: SessionRecord): Promise<void> {
     this.db.runSync(
-      `INSERT INTO session_records (startedAt, endedAt, guideType, bpm, preHr, postHr, comfort, improvement, breathConfig, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO session_records (startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record.startedAt,
         record.endedAt,
@@ -41,7 +40,6 @@ export class SqliteSessionRepository implements SessionRepository {
         record.bpm ?? null,
         record.preHr ?? null,
         record.postHr ?? null,
-        record.comfort ?? null,
         record.improvement ?? null,
         record.breathConfig ? JSON.stringify(record.breathConfig) : null,
         null,
@@ -51,7 +49,7 @@ export class SqliteSessionRepository implements SessionRepository {
 
   async list(): Promise<SessionRecord[]> {
     const rows = this.db.getAllSync(
-      `SELECT id, startedAt, endedAt, guideType, bpm, preHr, postHr, comfort, improvement, breathConfig
+      `SELECT id, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig
        FROM session_records
        ORDER BY startedAt DESC`
     ) as any[];
@@ -63,7 +61,6 @@ export class SqliteSessionRepository implements SessionRepository {
       bpm: r.bpm ?? undefined,
       preHr: r.preHr ?? undefined,
       postHr: r.postHr ?? undefined,
-      comfort: r.comfort ?? undefined,
       improvement: r.improvement ?? undefined,
       breathConfig: r.breathConfig ? JSON.parse(r.breathConfig) : undefined,
     }));
@@ -71,7 +68,7 @@ export class SqliteSessionRepository implements SessionRepository {
 
   async get(id: string): Promise<SessionRecord | null> {
     const row = this.db.getFirstSync(
-      `SELECT id, startedAt, endedAt, guideType, bpm, preHr, postHr, comfort, improvement, breathConfig
+      `SELECT id, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig
        FROM session_records WHERE id = ?`,
       [id]
     ) as any;
@@ -84,7 +81,6 @@ export class SqliteSessionRepository implements SessionRepository {
       bpm: row.bpm ?? undefined,
       preHr: row.preHr ?? undefined,
       postHr: row.postHr ?? undefined,
-      comfort: row.comfort ?? undefined,
       improvement: row.improvement ?? undefined,
       breathConfig: row.breathConfig ? JSON.parse(row.breathConfig) : undefined,
     };

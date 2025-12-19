@@ -79,9 +79,7 @@ function LogCard({ record }: { record: SessionRecord }) {
         開始心拍: {record.preHr ?? '-'} / 終了心拍: {record.postHr ?? '-'}
       </Text>
       <Text style={styles.meta}>BPM: {record.bpm ?? '-'}</Text>
-      <Text style={styles.meta}>
-        体感: {record.comfort ?? '-'} / 改善: {record.improvement ?? '-'}
-      </Text>
+      <Text style={styles.meta}>改善: {record.improvement ?? '-'}</Text>
     </View>
   );
 }

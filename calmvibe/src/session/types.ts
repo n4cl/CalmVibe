@@ -6,7 +6,6 @@ export type SessionRecord = {
   bpm?: number;
   preHr?: number;
   postHr?: number;
-  comfort?: number;
   improvement?: number;
   breathConfig?: unknown;
 };

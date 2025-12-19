@@ -131,7 +131,6 @@ describe('SessionUseCase complete', () => {
       guideType: 'VIBRATION' as const,
       preHr: 80,
       postHr: 70,
-      comfort: 4,
       improvement: 5,
       bpm: 60,
       breathConfig: null,
@@ -144,7 +143,6 @@ describe('SessionUseCase complete', () => {
     expect(record.bpm).toBe(60);
     expect(record.preHr).toBe(80);
     expect(record.postHr).toBe(70);
-    expect(record.comfort).toBe(4);
     expect(record.improvement).toBe(5);
     expect(new Date(record.startedAt).getTime()).toBeLessThanOrEqual(new Date(record.endedAt).getTime());
   });

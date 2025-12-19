@@ -8,7 +8,6 @@ export type CompleteInput = {
   preHr?: number;
   postHr?: number;
   guideType: 'VIBRATION' | 'BREATH';
-  comfort?: number;
   improvement?: number;
   breathConfig?: any;
   bpm?: number;
@@ -102,7 +101,6 @@ export class SessionUseCase {
       bpm: input.bpm,
       preHr: input.preHr,
       postHr: input.postHr,
-      comfort: input.comfort,
       improvement: input.improvement,
       breathConfig: input.breathConfig,
     };
