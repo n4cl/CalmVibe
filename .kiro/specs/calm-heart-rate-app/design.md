@@ -240,7 +240,7 @@ interface SessionUseCase {
 - **Notes**: stop時はGuidanceEngine.stopをawait。保存失敗はResultで返しUIリトライへ。
 
 ### SettingsRepository (Service/State)
-- **Intent**: BPM/時間/強度・呼吸パターンの保存/取得。
+- **Intent**: BPM/時間・呼吸パターンの保存/取得。
 - **Contracts**:
 ```typescript
 interface SettingsRepository {
@@ -248,7 +248,7 @@ interface SettingsRepository {
   save(values: SettingsValues): Promise<Result>;
 }
 ```
-- **Validation**: bpm 40-90, durationSec 60-300 or null, cycles 正数 or null, intensity enum。
+- **Validation**: bpm 40-90, durationSec 60-300 or null, cycles 正数 or null。
 
 ### SessionRepository (Service/State)
 - **Intent**: セッション記録の保存と取得。
@@ -280,12 +280,12 @@ interface SessionRepository {
 ## Data Models
 
 ### Domain Model
-- GuidanceSettings: bpm, durationSec, intensity, breath(BreathPattern)。
+- GuidanceSettings: bpm, durationSec, breath(BreathPattern)。
 - SessionRecord: id, startedAt, endedAt, guideType, bpm?, breathConfig?, pre/postHr?, improvement?.
 - Invariants: cycles null=∞、durationSec null=∞（手動停止必須）。
 
 ### Logical Data Model
-- `settings`(id=1, bpm INT, durationSec INT NULL, intensity TEXT, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
+- `settings`(id=1, bpm INT, durationSec INT NULL, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
 - `session_records`(id PK, startedAt TEXT, endedAt TEXT, guideType TEXT, bpm INT NULL, preHr INT NULL, postHr INT NULL, improvement INT NULL, breathConfig TEXT NULL, notes TEXT NULL)
 - Index: startedAt DESC。
 
