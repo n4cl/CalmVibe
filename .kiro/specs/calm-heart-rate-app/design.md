@@ -144,6 +144,7 @@ sequenceDiagram
 | 3.2 | 呼吸モード開始 | SessionUseCase, GuidanceEngine | startGuidance | 開始 |
 | 3.3 | モード独立開始 | SessionUseCase | start | 開始 |
 | 4.1-4.5 | 記録と履歴表示 | SessionUseCase, SessionRepository, LogsScreen | complete/save/list | 完了/閲覧 |
+| 4.6 | 履歴の追加読み込み | SessionRepository, LogsScreen | listPage | 閲覧 |
 | 5.1 | タブを2つに限定 | TabLayout, SessionTab, LogsTab | tabs config | 起動 |
 | 5.2 | デフォルトでセッション表示 | TabLayout | tabs initial | 起動 |
 | 5.3 | 履歴タブで一覧即表示 | TabLayout, LogsScreen | tabs route | ナビ |
@@ -267,13 +268,21 @@ type SessionRecord = {
 interface SessionRepository {
   save(record: SessionRecord): Promise<Result>;
   list(order?: 'asc'|'desc'): Promise<SessionRecord[]>; // default: 'desc' (recordedAt)
+  listPage(input: {
+    limit: number;
+    cursor?: { recordedAt: string; id: string } | null;
+  }): Promise<{
+    records: SessionRecord[];
+    nextCursor?: { recordedAt: string; id: string } | null;
+    hasNext: boolean;
+  }>;
   get(id: string): Promise<SessionRecord | null>;
 }
 ```
-- **Notes**: recordedAt DESCインデックス。breathConfigはJSON文字列で永続化。
+- **Notes**: recordedAt DESC + id DESCインデックスで安定ソート。cursorは(recordedAt,id)で保持。breathConfigはJSON文字列で永続化。
 
 ### Tab/Logs UI Components (State)
-- **LogsScreen**: `SessionRepository.list('desc')` を呼び recordedAt 降順で表示（UI側で追加ソートはしない）。タップで詳細へ（既存ログUIを流用/拡張）。
+- **LogsScreen**: 初回は `SessionRepository.listPage` で最新分を取得し、recordedAt 降順で表示（UI側で追加ソートはしない）。`onEndReached` で追加ページを取得し、既存リストに追記する。タップで詳細へ（既存ログUIを流用/拡張）。
 - **State保持**: タブ切替時に再マウントで状態が失われないよう、tabs 配下コンポーネントのアンマウントを避けるか、VM/Storeに集約。
 
 ## Data Models
@@ -286,7 +295,7 @@ interface SessionRepository {
 ### Logical Data Model
 - `settings`(id=1, bpm INT, durationSec INT NULL, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
 - `session_records`(id PK, recordedAt TEXT, startedAt TEXT NULL, endedAt TEXT NULL, guideType TEXT, bpm INT NULL, preHr INT NULL, postHr INT NULL, improvement INT NULL, breathConfig TEXT NULL, notes TEXT NULL)
-- Index: startedAt DESC。
+- Index: recordedAt DESC, id DESC。
 
 ## Error Handling
 - ユーザーエラー: 入力範囲外(BPM/時間/cycles/heart rate)はUIバリデーションでブロック。
