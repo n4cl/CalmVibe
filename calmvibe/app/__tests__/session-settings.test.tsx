@@ -248,4 +248,25 @@ describe('SessionScreen manual record modal', () => {
     // 改善は未選択なので星はすべて非アクティブ
     expect(queryAllByLabelText(/改善[1-5]/).length).toBe(5);
   });
+
+  it('記録モーダルでガイド種別を選択して保存できる', async () => {
+    const repo = createRepo();
+    const useCase = createUseCaseMock();
+    const { getByText, findByTestId, findByText, getByLabelText } = render(
+      <SessionScreen settingsRepo={repo} useCase={useCase as any} />
+    );
+
+    await findByText('セッション開始');
+    fireEvent.press(getByText('記録する'));
+    await findByTestId('record-modal');
+
+    fireEvent.press(getByLabelText('guideType-breath'));
+    await act(async () => {
+      fireEvent.press(getByLabelText('record-save'));
+    });
+
+    expect(useCase.complete).toHaveBeenCalledWith(
+      expect.objectContaining({ guideType: 'BREATH' })
+    );
+  });
 });

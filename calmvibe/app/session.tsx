@@ -17,6 +17,11 @@ const breathPresets: { label: string; pattern: BreathPattern }[] = [
   { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
 ];
 
+const buildBreathSummary = (values: SettingsValues) =>
+  values.breath.type === 'three-phase'
+    ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}`
+    : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`;
+
 export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }: SessionScreenProps) {
   const repo = useMemo<SettingsRepository>(() => settingsRepo ?? new SqliteSettingsRepository(), [settingsRepo]);
   const useCase = useMemo<SessionUseCase>(
@@ -135,6 +140,20 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
     setSaving(true);
     await repo.save(values);
     setSaving(false);
+  };
+
+  const updateGuideType = (guideType: 'VIBRATION' | 'BREATH') => {
+    if (!values) return;
+    setRecordDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            guideType,
+            bpm: guideType === 'VIBRATION' ? values.bpm : undefined,
+            breathSummary: guideType === 'BREATH' ? buildBreathSummary(values) : undefined,
+          }
+        : prev
+    );
   };
 
   const listener: GuidanceListener = {
@@ -262,9 +281,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
                 bpm: mode === 'VIBRATION' ? values?.bpm : undefined,
                 breathSummary:
                   mode === 'BREATH' && values
-                    ? values.breath.type === 'three-phase'
-                      ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}`
-                      : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`
+                    ? buildBreathSummary(values)
                     : undefined,
                 preHr: '',
                 postHr: '',
@@ -429,6 +446,36 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
             {recordDraft.breathSummary && <Text style={styles.modalMeta}>呼吸: {recordDraft.breathSummary}</Text>}
 
             <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>ガイド種別</Text>
+              <View style={styles.segmentRow}>
+                <Pressable
+                  accessibilityLabel="guideType-vibration"
+                  style={[
+                    styles.segment,
+                    recordDraft.guideType === 'VIBRATION' && styles.segmentActive,
+                  ]}
+                  onPress={() => updateGuideType('VIBRATION')}
+                >
+                  <Text style={[styles.segmentLabel, recordDraft.guideType === 'VIBRATION' && styles.segmentLabelActive]}>
+                    心拍
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel="guideType-breath"
+                  style={[
+                    styles.segment,
+                    recordDraft.guideType === 'BREATH' && styles.segmentActive,
+                  ]}
+                  onPress={() => updateGuideType('BREATH')}
+                >
+                  <Text style={[styles.segmentLabel, recordDraft.guideType === 'BREATH' && styles.segmentLabelActive]}>
+                    呼吸
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.inputRow}>
               <Text style={styles.inputLabel}>開始心拍</Text>
               <TextInput
                 style={styles.input}
@@ -467,10 +514,15 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable style={[styles.modalButton, styles.modalCancel]} onPress={() => setRecordVisible(false)}>
+              <Pressable
+                accessibilityLabel="record-cancel"
+                style={[styles.modalButton, styles.modalCancel]}
+                onPress={() => setRecordVisible(false)}
+              >
                 <Text style={styles.modalButtonLabel}>閉じる</Text>
               </Pressable>
               <Pressable
+                accessibilityLabel="record-save"
                 style={[styles.modalButton, styles.modalSave]}
                 onPress={async () => {
                   if (!recordDraft) return;
@@ -534,6 +586,11 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   inputLabel: { width: 90, fontSize: 14, color: '#111' },
   input: { flex: 1, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14 },
+  segmentRow: { flexDirection: 'row', gap: 6 },
+  segment: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff' },
+  segmentActive: { borderColor: '#2563eb', backgroundColor: '#e8f1ff' },
+  segmentLabel: { fontSize: 12, color: '#1f2937' },
+  segmentLabelActive: { fontSize: 12, color: '#1746b4', fontWeight: '700' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 6 },
   modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
   modalCancel: { backgroundColor: '#e5e7eb' },
