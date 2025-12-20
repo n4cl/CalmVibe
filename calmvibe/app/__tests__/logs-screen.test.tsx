@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import LogsScreen from '../logs';
 import { SessionRecord, SessionRepository } from '../../src/session/types';
 
@@ -65,6 +65,22 @@ describe('LogsScreen', () => {
 
     // 改善度
     expect(queryAllByText(/改善:/).length).toBeGreaterThan(0);
+  });
+
+  it('履歴カードをタップすると詳細モーダルを表示する', async () => {
+    const repo = createRepo(records);
+    const { getByLabelText, getByText, findByTestId } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴')).toBeTruthy();
+    });
+
+    fireEvent.press(getByLabelText('log-item-2'));
+
+    const modal = await findByTestId('log-detail-modal');
+    expect(modal).toBeTruthy();
+    expect(getByText('履歴詳細')).toBeTruthy();
+    expect(getByText(/ガイド: 心拍ガイド/)).toBeTruthy();
   });
 
   it('履歴が無い場合に空メッセージを表示する', async () => {

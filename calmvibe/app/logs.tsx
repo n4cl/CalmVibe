@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SessionRepository, SessionRecord } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 
@@ -11,6 +11,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const repo = useMemo<SessionRepository>(() => injectedRepo ?? new SqliteSessionRepository(), [injectedRepo]);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SessionRecord[]>([]);
+  const [selected, setSelected] = useState<SessionRecord | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -50,10 +51,32 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <LogCard record={item} />}
+        renderItem={({ item }) => (
+          <Pressable accessibilityLabel={`log-item-${item.id}`} onPress={() => setSelected(item)}>
+            <LogCard record={item} />
+          </Pressable>
+        )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={{ paddingBottom: 24 }}
       />
+      {selected && (
+        <View style={styles.modalBackdrop} testID="log-detail-modal">
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>履歴詳細</Text>
+            <Text style={styles.meta}>ガイド: {guideLabel(selected.guideType)}</Text>
+            <Text style={styles.meta}>記録時刻: {formatDate(selected.recordedAt)}</Text>
+            <Text style={styles.meta}>開始時刻: {formatDate(selected.startedAt)}</Text>
+            <Text style={styles.meta}>終了時刻: {formatDate(selected.endedAt)}</Text>
+            <Text style={styles.meta}>BPM: {selected.bpm ?? '-'}</Text>
+            <Text style={styles.meta}>開始心拍: {selected.preHr ?? '-'}</Text>
+            <Text style={styles.meta}>終了心拍: {selected.postHr ?? '-'}</Text>
+            <Text style={styles.meta}>改善: {selected.improvement ?? '-'}</Text>
+            <Pressable style={[styles.modalButton, styles.modalClose]} onPress={() => setSelected(null)}>
+              <Text style={styles.modalButtonLabel}>閉じる</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -96,4 +119,10 @@ const styles = StyleSheet.create({
   guide: { fontSize: 14, fontWeight: '700', color: '#1f2937' },
   date: { fontSize: 12, color: '#4b5563' },
   meta: { fontSize: 13, color: '#1f2937' },
+  modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: { width: '100%', backgroundColor: '#fff', borderRadius: 12, padding: 16, gap: 8 },
+  modalTitle: { fontSize: 18, fontWeight: '700' },
+  modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignSelf: 'flex-end' },
+  modalClose: { backgroundColor: '#e5e7eb' },
+  modalButtonLabel: { color: '#111', fontWeight: '700' },
 });
