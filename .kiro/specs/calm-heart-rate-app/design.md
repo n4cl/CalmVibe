@@ -138,9 +138,8 @@ sequenceDiagram
 | 1.6 | デフォルト復元 | SessionViewModel, SettingsRepository | save/get | 設定 |
 | 2.1 | 心拍ガイド開始・視覚同期 | GuidanceEngine, HapticsAdapter, BreathVisualGuide | startGuidance listener | 進行 |
 | 2.2 | BPM±5%目標 | GuidanceEngine | startGuidance | 進行 |
-| 2.3 | 視覚ガイドOFF許可 | SessionViewModel | UI state | 進行 |
-| 2.4 | 時間/手動停止で確実終了 | GuidanceEngine, SessionUseCase | stopGuidance | 停止 |
-| 2.5 | 呼吸フェーズ同期振動/視覚 | GuidanceEngine, BreathVisualGuide | startGuidance | 進行 |
+| 2.3 | 時間/手動停止で確実終了 | GuidanceEngine, SessionUseCase | stopGuidance | 停止 |
+| 2.4 | 呼吸フェーズ同期振動/視覚 | GuidanceEngine, BreathVisualGuide | startGuidance | 進行 |
 | 3.1 | 呼吸プリセット保持 | SettingsRepository | save/get | 設定 |
 | 3.2 | 呼吸モード開始 | SessionUseCase, GuidanceEngine | startGuidance | 開始 |
 | 3.3 | モード独立開始 | SessionUseCase | start | 開始 |
@@ -158,13 +157,13 @@ sequenceDiagram
 | TabLayout | UI/Nav | 2タブ構成を定義（Session/Logs） | 5.1-5.3 | SessionScreen(P0), LogsScreen(P0) | State |
 | SessionScreen | UI | 設定編集と開始/停止操作 | 1.*,2.*,3.*,5.4 | SessionViewModel(P0) | State |
 | LogsScreen | UI | 履歴一覧/詳細表示 | 4.*,5.3 | SessionRepository(P0) | State |
-| SessionViewModel | UI/Domain Facade | 設定CRUD・開始/停止中継・状態保持 | 1.*,2.3,3.*,4.*,5.4 | SettingsRepository(P0), SessionUseCase(P0) | Service, State |
-| GuidanceEngine | Domain | 心拍/呼吸ガイド実行とイベント通知 | 1.3,2.1-2.5,3.2 | HapticsAdapter(P0) | Service |
-| SessionUseCase | Domain | 開始/停止/記録保存のオーケストレーション | 1.3,2.1-2.4,3.2,3.3,4.*,5.4 | GuidanceEngine(P0), SettingsRepository(P0), SessionRepository(P0) | Service |
+| SessionViewModel | UI/Domain Facade | 設定CRUD・開始/停止中継・状態保持 | 1.*,3.*,4.*,5.4 | SettingsRepository(P0), SessionUseCase(P0) | Service, State |
+| GuidanceEngine | Domain | 心拍/呼吸ガイド実行とイベント通知 | 1.3,2.1-2.4,3.2 | HapticsAdapter(P0) | Service |
+| SessionUseCase | Domain | 開始/停止/記録保存のオーケストレーション | 1.3,2.1-2.3,3.2,3.3,4.*,5.4 | GuidanceEngine(P0), SettingsRepository(P0), SessionRepository(P0) | Service |
 | SettingsRepository | Data | 設定の保存/取得 | 1.1-1.6,3.1 | SQLite/Memory(P0) | Service, State |
 | SessionRepository | Data | セッション記録保存/取得 | 4.*,5.3 | SQLite/Memory(P0) | Service, State |
-| HapticsAdapter | Platform | 振動実行/停止と結果返却 | 1.3,2.1,2.2,2.5 | expo-haptics(P0) | Service |
-| BreathVisualGuide | UI | フェーズに同期した視覚ガイド | 2.1,2.5 | SessionViewModel(P1) | State |
+| HapticsAdapter | Platform | 振動実行/停止と結果返却 | 1.3,2.1,2.2,2.4 | expo-haptics(P0) | Service |
+| BreathVisualGuide | UI | フェーズに同期した視覚ガイド | 2.1,2.4 | SessionViewModel(P1) | State |
 
 ### TabLayout (State)
 - **Intent**: タブバーを「Session」「Logs」の2つに限定し、初期表示をSessionにする。
@@ -189,10 +188,10 @@ interface SessionViewModel {
   start(mode: 'VIBRATION'|'BREATH'): Promise<Result>;
   stop(): Promise<Result>;
   complete(input: CompleteInput): Promise<Result>;
-  getState(): { settings: SettingsValues; mode: 'VIBRATION'|'BREATH'; visualEnabled: boolean };
+  getState(): { settings: SettingsValues; mode: 'VIBRATION'|'BREATH' };
 }
 ```
-- **Notes**: タブ切替で状態保持するため、VMインスタンスをタブの外側で提供（context/singleton）。visualEnabledで視覚ガイドON/OFFを管理。
+- **Notes**: タブ切替で状態保持するため、VMインスタンスをタブの外側で提供（context/singleton）。
 
 ### GuidanceEngine (Service)
 - **Intent**: 振動/呼吸ガイドのタイミング管理とリスナー通知。
@@ -203,8 +202,7 @@ interface GuidanceConfig {
   mode: 'VIBRATION' | 'BREATH';
   bpm?: number;
   vibrationPattern?: number[];
-  durationSec: number;
-  visualEnabled: boolean;
+  durationSec?: number | null;
   breath?: { inhaleMs: number; holdMs?: number; exhaleMs: number; cycles: number|null; haptics?: { pattern: number[] } };
 }
 interface GuidanceListener {
@@ -218,8 +216,8 @@ interface GuidanceEngine {
   isActive(): boolean;
 }
 ```
-- **Preconditions**: durationSec > 0, VIBRATION時 bpm 40-90, 呼吸フェーズ秒数は正数。
-- **Implementation Notes**: 計画時刻を累積しドリフト補正。cycles=null は durationSec で上限。Webでは play 失敗でも {ok:true} を返し継続。
+- **Preconditions**: durationSec が指定されている場合は > 0, VIBRATION時 bpm 40-90, 呼吸フェーズ秒数は正数。
+- **Implementation Notes**: 計画時刻を累積しドリフト補正。durationSec が null/未指定の場合は終了タイマーを作らず、停止操作のみで終了する。cycles=null は durationSec がある場合のみ上限として扱う。Webでは play 失敗でも {ok:true} を返し継続。
 
 ### SessionUseCase (Service)
 - **Intent**: 設定取得→Guidance開始/停止→完了データ保存のオーケストレーション。
@@ -236,7 +234,7 @@ interface SessionUseCase {
   complete(input: CompleteInput): Promise<Result>;
 }
 ```
-- **Invariants**: startは非アクティブ時のみ。completeは実行前/中/停止後のいずれでも可能。breath cycles null=∞ は手動停止またはdurationで終了。
+- **Invariants**: startは非アクティブ時のみ。completeは実行前/中/停止後のいずれでも可能。breath cycles null=∞ は手動停止またはdurationで終了（durationSecが未指定の場合は手動停止のみ）。
 - **Notes**: stop時はGuidanceEngine.stopをawait。保存失敗はResultで返しUIリトライへ。
 
 ### SettingsRepository (Service/State)
@@ -282,7 +280,7 @@ interface SessionRepository {
 ### Domain Model
 - GuidanceSettings: bpm, durationSec, breath(BreathPattern)。
 - SessionRecord: id, startedAt, endedAt, guideType, bpm?, breathConfig?, pre/postHr?, improvement?.
-- Invariants: cycles null=∞、durationSec null=∞（手動停止必須）。
+- Invariants: cycles null=∞、durationSec null/未指定=∞（手動停止必須）。
 
 ### Logical Data Model
 - `settings`(id=1, bpm INT, durationSec INT NULL, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
