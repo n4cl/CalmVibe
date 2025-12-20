@@ -2,11 +2,11 @@
 
 - [x] 1. 設定永続化とデフォルト復元
 - [x] 1.1 SQLiteスキーマとメモリフォールバック
-  - settingsテーブルを設計準拠のBreathPattern構造（bpm, durationSec[60-300|null], intensity, breath.type/inhale/hold/exhale/cycles）で初期化し、Web/テスト時のメモリ実装も整備する
-  - _Requirements: 1.1,1.2,1.4,1.5,3.1_
+  - settingsテーブルを設計準拠のBreathPattern構造（bpm, durationSec[60-300|null], breath.type/inhale/hold/exhale/cycles）で初期化し、Web/テスト時のメモリ実装も整備する
+  - _Requirements: 1.1,1.4,1.5,3.1_
 - [x] 1.2 SettingsRepository実装とデフォルト適用
   - 保存/取得で値域を検証しつつデフォルトを返すフェイルセーフを備える（bpm40-90, duration60-300|null, cycles null=∞）
-  - _Requirements: 1.1,1.2,1.4,1.5,3.1_
+  - _Requirements: 1.1,1.4,1.5,1.6,3.1_
 
 - [x] 2. セッション設定UI＆ガイド準備
 - [x] 2.1 心拍設定UI（BPM/時間）と自動復元
@@ -21,7 +21,7 @@
   - _Requirements: 1.3,2.3,2.4_
 - [x] 2.4 モード単一表示と開始ボタン統一
   - 画面上部でモード（振動/呼吸）を選択し、選択中モードの設定と開始ボタンのみ表示する。開始ボタンは共通の「開始」に統一する
-  - _Requirements: 3.4_
+  - _Requirements: 3.4,3.5_
 - [x] 2.5 視覚ガイドの常時表示と待機状態
   - 開始前からガイド要素を表示し、未実行時は待機状態で静止表示する。開始で選択モードのアニメーションに遷移し、停止で待機に戻す
   - _Requirements: 2.1,2.3,2.4_
