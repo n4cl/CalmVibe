@@ -13,7 +13,7 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   async list(): Promise<SessionRecord[]> {
-    return [...this.store].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
+    return [...this.store].sort((a, b) => (a.recordedAt < b.recordedAt ? 1 : -1));
   }
 
   async get(id: string): Promise<SessionRecord | null> {

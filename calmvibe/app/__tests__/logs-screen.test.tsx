@@ -6,6 +6,7 @@ import { SessionRecord, SessionRepository } from '../../src/session/types';
 const records: SessionRecord[] = [
   {
     id: '2',
+    recordedAt: '2025-12-17T12:06:00.000Z',
     startedAt: '2025-12-17T12:00:00.000Z',
     endedAt: '2025-12-17T12:05:00.000Z',
     guideType: 'VIBRATION',
@@ -17,8 +18,9 @@ const records: SessionRecord[] = [
   },
   {
     id: '1',
-    startedAt: '2025-12-16T11:00:00.000Z',
-    endedAt: '2025-12-16T11:07:00.000Z',
+    recordedAt: '2025-12-16T11:10:00.000Z',
+    startedAt: null,
+    endedAt: null,
     guideType: 'BREATH',
     preHr: 90,
     postHr: 75,

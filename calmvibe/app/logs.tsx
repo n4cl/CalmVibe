@@ -60,7 +60,8 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
 
 const guideLabel = (guide: SessionRecord['guideType']) => (guide === 'VIBRATION' ? '心拍ガイド' : '呼吸ガイド');
 
-const formatDate = (iso: string) => {
+const formatDate = (iso?: string | null) => {
+  if (!iso) return '-';
   try {
     return new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
   } catch {
@@ -73,7 +74,7 @@ function LogCard({ record }: { record: SessionRecord }) {
     <View style={styles.card}>
       <View style={styles.row}>
         <Text style={styles.guide}>{guideLabel(record.guideType)}</Text>
-        <Text style={styles.date}>{formatDate(record.startedAt)}</Text>
+        <Text style={styles.date}>{formatDate(record.recordedAt)}</Text>
       </View>
       <Text style={styles.meta}>
         開始心拍: {record.preHr ?? '-'} / 終了心拍: {record.postHr ?? '-'}

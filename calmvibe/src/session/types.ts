@@ -1,7 +1,8 @@
 export type SessionRecord = {
   id: string;
-  startedAt: string;
-  endedAt: string;
+  recordedAt: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
   guideType: 'VIBRATION' | 'BREATH';
   bpm?: number;
   preHr?: number;

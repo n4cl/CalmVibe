@@ -12,11 +12,30 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   private migrate() {
+    const columns = this.db.getAllSync(`PRAGMA table_info(session_records);`) as Array<{
+      name: string;
+      notnull: number;
+    }>;
+    if (columns.length === 0) {
+      this.createTable();
+      return;
+    }
+    const hasRecordedAt = columns.some((c) => c.name === 'recordedAt');
+    const startedNotNull = columns.find((c) => c.name === 'startedAt')?.notnull === 1;
+    const endedNotNull = columns.find((c) => c.name === 'endedAt')?.notnull === 1;
+    if (!hasRecordedAt || startedNotNull || endedNotNull) {
+      this.rebuildTable(hasRecordedAt);
+    }
+    this.db.execSync(`CREATE INDEX IF NOT EXISTS idx_session_records_recordedAt_desc ON session_records(recordedAt DESC);`);
+  }
+
+  private createTable() {
     this.db.execSync(
       `CREATE TABLE IF NOT EXISTS session_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        startedAt TEXT NOT NULL,
-        endedAt TEXT NOT NULL,
+        recordedAt TEXT NOT NULL,
+        startedAt TEXT NULL,
+        endedAt TEXT NULL,
         guideType TEXT NOT NULL,
         bpm INTEGER NULL,
         preHr INTEGER NULL,
@@ -26,14 +45,69 @@ export class SqliteSessionRepository implements SessionRepository {
         notes TEXT NULL
       );`
     );
-    this.db.execSync(`CREATE INDEX IF NOT EXISTS idx_session_records_startedAt_desc ON session_records(startedAt DESC);`);
+    this.db.execSync(`CREATE INDEX IF NOT EXISTS idx_session_records_recordedAt_desc ON session_records(recordedAt DESC);`);
+  }
+
+  private rebuildTable(hasRecordedAt: boolean) {
+    const rows = hasRecordedAt
+      ? (this.db.getAllSync(
+          `SELECT id, recordedAt, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig, notes
+           FROM session_records`
+        ) as any[])
+      : (this.db.getAllSync(
+          `SELECT id, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig, notes
+           FROM session_records`
+        ) as any[]);
+
+    this.db.execSync(`DROP TABLE IF EXISTS session_records_v2;`);
+    this.db.execSync(
+      `CREATE TABLE session_records_v2 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recordedAt TEXT NOT NULL,
+        startedAt TEXT NULL,
+        endedAt TEXT NULL,
+        guideType TEXT NOT NULL,
+        bpm INTEGER NULL,
+        preHr INTEGER NULL,
+        postHr INTEGER NULL,
+        improvement INTEGER NULL,
+        breathConfig TEXT NULL,
+        notes TEXT NULL
+      );`
+    );
+
+    const nowIso = new Date().toISOString();
+    rows.forEach((row) => {
+      const recordedAt = hasRecordedAt ? row.recordedAt ?? nowIso : row.startedAt ?? row.endedAt ?? nowIso;
+      this.db.runSync(
+        `INSERT INTO session_records_v2 (id, recordedAt, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          row.id,
+          recordedAt,
+          row.startedAt ?? null,
+          row.endedAt ?? null,
+          row.guideType,
+          row.bpm ?? null,
+          row.preHr ?? null,
+          row.postHr ?? null,
+          row.improvement ?? null,
+          row.breathConfig ?? null,
+          row.notes ?? null,
+        ]
+      );
+    });
+
+    this.db.execSync(`DROP TABLE session_records;`);
+    this.db.execSync(`ALTER TABLE session_records_v2 RENAME TO session_records;`);
   }
 
   async save(record: SessionRecord): Promise<void> {
     this.db.runSync(
-      `INSERT INTO session_records (startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO session_records (recordedAt, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        record.recordedAt,
         record.startedAt,
         record.endedAt,
         record.guideType,
@@ -49,12 +123,13 @@ export class SqliteSessionRepository implements SessionRepository {
 
   async list(): Promise<SessionRecord[]> {
     const rows = this.db.getAllSync(
-      `SELECT id, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig
+      `SELECT id, recordedAt, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig
        FROM session_records
-       ORDER BY startedAt DESC`
+       ORDER BY recordedAt DESC`
     ) as any[];
     return rows.map((r) => ({
       id: String(r.id),
+      recordedAt: r.recordedAt,
       startedAt: r.startedAt,
       endedAt: r.endedAt,
       guideType: r.guideType,
@@ -68,13 +143,14 @@ export class SqliteSessionRepository implements SessionRepository {
 
   async get(id: string): Promise<SessionRecord | null> {
     const row = this.db.getFirstSync(
-      `SELECT id, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig
+      `SELECT id, recordedAt, startedAt, endedAt, guideType, bpm, preHr, postHr, improvement, breathConfig
        FROM session_records WHERE id = ?`,
       [id]
     ) as any;
     if (!row) return null;
     return {
       id: String(row.id),
+      recordedAt: row.recordedAt,
       startedAt: row.startedAt,
       endedAt: row.endedAt,
       guideType: row.guideType,

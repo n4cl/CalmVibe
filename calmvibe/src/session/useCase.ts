@@ -91,12 +91,14 @@ export class SessionUseCase {
   }
 
   async complete(input: CompleteInput): Promise<Result> {
-    if (!this.startedAt) return { ok: false, error: 'not_started' };
-    const endedAt = Date.now();
+    const recordedAt = Date.now();
+    const startedAtIso = this.startedAt ? new Date(this.startedAt).toISOString() : null;
+    const endedAtIso = this.startedAt ? new Date(recordedAt).toISOString() : null;
     const record: SessionRecord = {
-      id: `${endedAt}`,
-      startedAt: new Date(this.startedAt).toISOString(),
-      endedAt: new Date(endedAt).toISOString(),
+      id: `${recordedAt}`,
+      recordedAt: new Date(recordedAt).toISOString(),
+      startedAt: startedAtIso,
+      endedAt: endedAtIso,
       guideType: input.guideType,
       bpm: input.bpm,
       preHr: input.preHr,
@@ -105,9 +107,10 @@ export class SessionUseCase {
       breathConfig: input.breathConfig,
     };
     await this.sessionRepo.save(record);
-    this.active = false;
-    this.startedAt = null;
-    this.currentMode = null;
+    if (!this.active) {
+      this.startedAt = null;
+      this.currentMode = null;
+    }
     return { ok: true };
   }
 

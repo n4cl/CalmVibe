@@ -45,7 +45,7 @@
   - 実行前/実行中/停止後のいずれでも「記録する」から開ける。pre/post心拍、improvement、guideType、breath/BPMを入力でき、UseCaseで検証して保存要求を発行する
   - _Requirements: 4.1,4.2,4.3,4.4,4.5_
 - [x] 4.3 SessionRepositoryで記録保存
-  - session_recordsへ開始/終了時刻、ガイド種別、心拍、改善度、breath/BPMを保存する
+  - session_recordsへ記録時刻と開始/終了時刻、ガイド種別、心拍、改善度、breath/BPMを保存する
   - _Requirements: 4.1,4.2,4.3,4.4,4.5_
 - [x] 4.4 SessionScreenをUseCase/GuidanceEngineに接続し設定どおり継続動作させる
   - Start/Stopボタンを SessionUseCase.start/stop に置き換え、BPM/時間/呼吸フェーズ/cycles/durationを反映する
@@ -62,7 +62,7 @@
   - _Requirements: 1.1,1.5_
 
 - [ ] 5. 履歴一覧・詳細表示
-- [x] 5.1 履歴一覧（startedAt DESC）
+- [x] 5.1 履歴一覧（recordedAt DESC）
   - 各セッションの開始/終了心拍・ガイド種別・改善度・breath/BPMを表示する
   - _Requirements: 4.5_
 - [ ] 5.2 履歴詳細

@@ -254,8 +254,9 @@ interface SettingsRepository {
 ```typescript
 type SessionRecord = {
   id: string;
-  startedAt: string;
-  endedAt: string;
+  recordedAt: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
   guideType: 'VIBRATION'|'BREATH';
   bpm?: number;
   preHr?: number;
@@ -265,26 +266,26 @@ type SessionRecord = {
 };
 interface SessionRepository {
   save(record: SessionRecord): Promise<Result>;
-  list(order?: 'asc'|'desc'): Promise<SessionRecord[]>; // default: 'desc' (startedAt)
+  list(order?: 'asc'|'desc'): Promise<SessionRecord[]>; // default: 'desc' (recordedAt)
   get(id: string): Promise<SessionRecord | null>;
 }
 ```
-- **Notes**: startedAt DESCインデックス。breathConfigはJSON文字列で永続化。
+- **Notes**: recordedAt DESCインデックス。breathConfigはJSON文字列で永続化。
 
 ### Tab/Logs UI Components (State)
-- **LogsScreen**: `SessionRepository.list('desc')` を呼び startedAt 降順で表示（UI側で追加ソートはしない）。タップで詳細へ（既存ログUIを流用/拡張）。
+- **LogsScreen**: `SessionRepository.list('desc')` を呼び recordedAt 降順で表示（UI側で追加ソートはしない）。タップで詳細へ（既存ログUIを流用/拡張）。
 - **State保持**: タブ切替時に再マウントで状態が失われないよう、tabs 配下コンポーネントのアンマウントを避けるか、VM/Storeに集約。
 
 ## Data Models
 
 ### Domain Model
 - GuidanceSettings: bpm, durationSec, breath(BreathPattern)。
-- SessionRecord: id, startedAt, endedAt, guideType, bpm?, breathConfig?, pre/postHr?, improvement?.
+- SessionRecord: id, recordedAt, startedAt?, endedAt?, guideType, bpm?, breathConfig?, pre/postHr?, improvement?.
 - Invariants: cycles null=∞、durationSec null/未指定=∞（手動停止必須）。
 
 ### Logical Data Model
 - `settings`(id=1, bpm INT, durationSec INT NULL, breathType TEXT, inhaleSec INT, holdSec INT NULL, exhaleSec INT, breathCycles INT NULL, updatedAt TEXT)
-- `session_records`(id PK, startedAt TEXT, endedAt TEXT, guideType TEXT, bpm INT NULL, preHr INT NULL, postHr INT NULL, improvement INT NULL, breathConfig TEXT NULL, notes TEXT NULL)
+- `session_records`(id PK, recordedAt TEXT, startedAt TEXT NULL, endedAt TEXT NULL, guideType TEXT, bpm INT NULL, preHr INT NULL, postHr INT NULL, improvement INT NULL, breathConfig TEXT NULL, notes TEXT NULL)
 - Index: startedAt DESC。
 
 ## Error Handling

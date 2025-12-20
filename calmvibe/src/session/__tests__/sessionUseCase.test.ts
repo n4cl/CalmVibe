@@ -144,14 +144,26 @@ describe('SessionUseCase complete', () => {
     expect(record.preHr).toBe(80);
     expect(record.postHr).toBe(70);
     expect(record.improvement).toBe(5);
-    expect(new Date(record.startedAt).getTime()).toBeLessThanOrEqual(new Date(record.endedAt).getTime());
+    expect(record.startedAt).toBeTruthy();
+    expect(record.endedAt).toBeTruthy();
+    expect(record.recordedAt).toBeTruthy();
+    if (record.startedAt && record.endedAt) {
+      expect(new Date(record.startedAt).getTime()).toBeLessThanOrEqual(new Date(record.endedAt).getTime());
+    }
   });
 
-  it('開始せずにcompleteするとエラーを返す', async () => {
+  it('開始前の記録も保存でき、開始/終了時刻は空で扱う', async () => {
     const { guidance, settingsRepo, sessionRepo } = createMocks();
+    const save = jest.fn().mockResolvedValue(undefined);
+    sessionRepo.save = save;
     const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
 
-    const res = await useCase.complete({ guideType: 'BREATH' });
-    expect(res.ok).toBe(false);
+    const res = await useCase.complete({ guideType: 'VIBRATION', preHr: 72 });
+    expect(res.ok).toBe(true);
+    expect(save).toHaveBeenCalledTimes(1);
+    const record = save.mock.calls[0][0] as SessionRecord;
+    expect(record.startedAt).toBeNull();
+    expect(record.endedAt).toBeNull();
+    expect(record.recordedAt).toBeTruthy();
   });
 });
