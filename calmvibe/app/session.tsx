@@ -45,6 +45,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
   const [selectedMode, setSelectedMode] = useState<'VIBRATION' | 'BREATH'>('VIBRATION');
   const [recordVisible, setRecordVisible] = useState(false);
   const [recordDraft, setRecordDraft] = useState<RecordDraft | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const repeatTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopRepeat = () => {
     if (repeatTimer.current) {
@@ -75,10 +76,14 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
     };
   }, [repo]);
 
+  useEffect(() => {
+    setSettingsError(null);
+  }, [values]);
+
   const changeBpm = (delta: number) => {
     setValues((prev) => {
       if (!prev) return prev;
-      const next = Math.min(90, Math.max(40, prev.bpm + delta));
+      const next = Math.min(120, Math.max(40, prev.bpm + delta));
       if (runningRef.current === 'vibration') {
         void useCase.updateVibrationBpm?.(next);
       }
@@ -131,9 +136,15 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
 
   const save = async () => {
     if (!values) return;
+    const error = validateSettings(values);
+    if (error) {
+      setSettingsError(error);
+      return;
+    }
     setSaving(true);
     await repo.save(values);
     setSaving(false);
+    setSettingsError(null);
   };
 
   const handleRecordGuideTypeChange = (guideType: 'VIBRATION' | 'BREATH', draft: RecordDraft) => {
@@ -426,6 +437,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
       <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
         <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
       </Pressable>
+      {settingsError && <Text style={styles.errorText}>{settingsError}</Text>}
 
       <RecordModal
         visible={recordVisible}
@@ -483,4 +495,24 @@ const styles = StyleSheet.create({
   recordButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#94a3b8', backgroundColor: '#fff' },
   recordLabel: { color: '#1f2937', fontWeight: '700' },
   // RecordModal側で共通スタイルを持つため、セッション側ではモーダルのスタイルを持たない
+  errorText: { marginTop: 6, color: '#b91c1c', fontSize: 13 },
 });
+
+const validateSettings = (values: SettingsValues) => {
+  if (values.bpm < 40 || values.bpm > 120) {
+    return 'BPMは40〜120の範囲で入力してください';
+  }
+  if (values.durationSec !== null && (values.durationSec < 60 || values.durationSec > 300)) {
+    return '時間は60〜300秒の範囲で入力してください';
+  }
+  if (values.breath.cycles !== null && values.breath.cycles < 1) {
+    return 'サイクルは1以上で入力してください';
+  }
+  if (values.breath.inhaleSec < 1 || values.breath.exhaleSec < 1) {
+    return '呼吸の秒数は1以上で入力してください';
+  }
+  if (values.breath.type === 'three-phase' && values.breath.holdSec < 1) {
+    return '止める秒数は1以上で入力してください';
+  }
+  return null;
+};

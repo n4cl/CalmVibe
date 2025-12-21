@@ -130,7 +130,7 @@ sequenceDiagram
 
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
-| 1.1 | BPM保存(40-90) | SessionViewModel, SettingsRepository | SettingsRepository.save/get | 設定 |
+| 1.1 | BPM保存(40-120) | SessionViewModel, SettingsRepository | SettingsRepository.save/get | 設定 |
 | 1.2 | （廃止）振動強度選択は提供しない | - | - | - |
 | 1.3 | 開始で即時実行・停止まで継続 | SessionUseCase, GuidanceEngine, HapticsAdapter | GuidanceEngine.start/stop | 開始/停止 |
 | 1.4 | 前回設定の自動適用 | SessionViewModel, SettingsRepository | get | 起動時 |
@@ -217,7 +217,7 @@ interface GuidanceEngine {
   isActive(): boolean;
 }
 ```
-- **Preconditions**: durationSec が指定されている場合は > 0, VIBRATION時 bpm 40-90, 呼吸フェーズ秒数は正数。
+- **Preconditions**: durationSec が指定されている場合は > 0, VIBRATION時 bpm 40-120, 呼吸フェーズ秒数は正数。
 - **Implementation Notes**: 計画時刻を累積しドリフト補正。durationSec が null/未指定の場合は終了タイマーを作らず、停止操作のみで終了する。cycles=null は durationSec がある場合のみ上限として扱う。Webでは play 失敗でも {ok:true} を返し継続。
 
 ### SessionUseCase (Service)
@@ -247,7 +247,7 @@ interface SettingsRepository {
   save(values: SettingsValues): Promise<Result>;
 }
 ```
-- **Validation**: bpm 40-90, durationSec 60-300 or null, cycles 正数 or null。
+- **Validation**: bpm 40-120, durationSec 60-300 or null, cycles 正数 or null。
 
 ### SessionRepository (Service/State)
 - **Intent**: セッション記録の保存と取得。

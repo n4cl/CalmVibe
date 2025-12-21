@@ -5,7 +5,7 @@ export type BreathPattern =
   | { type: 'three-phase'; inhaleSec: number; holdSec: number; exhaleSec: number; cycles: number | null };
 
 export type SettingsValues = {
-  bpm: number; // 40-90
+  bpm: number; // 40-120
   durationSec: number | null; // 60-300 or null (∞)
   intensity: VibrationIntensity;
   breath: BreathPattern;

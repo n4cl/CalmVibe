@@ -16,7 +16,7 @@ const TABLE_SQL = `CREATE TABLE IF NOT EXISTS settings (
 )`;
 
 const toRow = (values: SettingsValues) => {
-  const bpm = clamp(values.bpm, 40, 90, defaultSettings.bpm);
+  const bpm = clamp(values.bpm, 40, 120, defaultSettings.bpm);
   const durationSec =
     values.durationSec === null ? null : clamp(values.durationSec, 60, 300, defaultSettings.durationSec as number);
   const intensity = values.intensity;
@@ -140,7 +140,7 @@ export class SqliteSettingsRepository implements SettingsRepository {
 
   async save(values: SettingsValues): Promise<void> {
     const normalized: SettingsValues = {
-      bpm: clamp(values.bpm, 40, 90, defaultSettings.bpm),
+      bpm: clamp(values.bpm, 40, 120, defaultSettings.bpm),
       durationSec:
         values.durationSec === null ? null : clamp(values.durationSec, 60, 300, defaultSettings.durationSec as number),
       intensity: values.intensity,

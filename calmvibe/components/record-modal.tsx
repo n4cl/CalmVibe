@@ -30,6 +30,8 @@ export default function RecordModal({
   onGuideTypeChange,
 }: Props) {
   if (!visible || !draft) return null;
+  const error = validateRecordDraft(draft);
+  const canSave = !error;
 
   const changeGuideType = (guideType: RecordDraft['guideType']) => {
     const next = onGuideTypeChange ? onGuideTypeChange(guideType, draft) : { ...draft, guideType };
@@ -110,14 +112,51 @@ export default function RecordModal({
           <Pressable accessibilityLabel="record-cancel" style={[styles.modalButton, styles.modalCancel]} onPress={onClose}>
             <Text style={styles.modalButtonLabel}>閉じる</Text>
           </Pressable>
-          <Pressable accessibilityLabel="record-save" style={[styles.modalButton, styles.modalSave]} onPress={onSave}>
+          <Pressable
+            accessibilityLabel="record-save"
+            style={[styles.modalButton, styles.modalSave, !canSave && styles.modalDisabled]}
+            onPress={onSave}
+            disabled={!canSave}
+          >
             <Text style={styles.modalButtonLabel}>保存</Text>
           </Pressable>
         </View>
+        {error && <Text style={styles.errorText}>{error}</Text>}
       </View>
     </View>
   );
 }
+
+const HR_MIN = 30;
+const HR_MAX = 220;
+const BPM_MIN = 40;
+const BPM_MAX = 120;
+
+const validateRecordDraft = (draft: RecordDraft) => {
+  if (draft.bpm !== undefined && (draft.bpm < BPM_MIN || draft.bpm > BPM_MAX)) {
+    return `BPMは${BPM_MIN}〜${BPM_MAX}の範囲で入力してください`;
+  }
+  const preHrError = validateHr('開始心拍', draft.preHr);
+  if (preHrError) return preHrError;
+  const postHrError = validateHr('終了心拍', draft.postHr);
+  if (postHrError) return postHrError;
+  if (draft.improvement !== undefined && draft.improvement !== '') {
+    const value = Number(draft.improvement);
+    if (!Number.isInteger(value) || value < 1 || value > 5) {
+      return '改善は1〜5の範囲で入力してください';
+    }
+  }
+  return null;
+};
+
+const validateHr = (label: string, value?: string) => {
+  if (value === undefined || value === '') return null;
+  const num = Number(value);
+  if (!Number.isInteger(num) || num < HR_MIN || num > HR_MAX) {
+    return `${label}は${HR_MIN}〜${HR_MAX}の範囲で入力してください`;
+  }
+  return null;
+};
 
 const styles = StyleSheet.create({
   modalBackdrop: {
@@ -146,8 +185,10 @@ const styles = StyleSheet.create({
   modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
   modalCancel: { backgroundColor: '#e5e7eb' },
   modalSave: { backgroundColor: '#2563eb' },
+  modalDisabled: { opacity: 0.6 },
   modalButtonLabel: { color: '#111', fontWeight: '700' },
   starsRow: { flexDirection: 'row', gap: 6 },
   star: { fontSize: 24, color: '#cbd5e1' },
   starActive: { fontSize: 24, color: '#f59e0b' },
+  errorText: { marginTop: 6, color: '#b91c1c', fontSize: 13 },
 });

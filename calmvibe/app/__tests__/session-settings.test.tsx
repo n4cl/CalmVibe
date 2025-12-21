@@ -269,4 +269,24 @@ describe('SessionScreen manual record modal', () => {
       expect.objectContaining({ guideType: 'BREATH' })
     );
   });
+
+  it('記録モーダルで範囲外の心拍は保存できない', async () => {
+    const repo = createRepo();
+    const useCase = createUseCaseMock();
+    const { getByText, findByTestId, findByText, getByLabelText } = render(
+      <SessionScreen settingsRepo={repo} useCase={useCase as any} />
+    );
+
+    await findByText('セッション開始');
+    fireEvent.press(getByText('記録する'));
+    await findByTestId('record-modal');
+
+    fireEvent.changeText(getByLabelText('preHr-input'), '999');
+
+    expect(getByText('開始心拍は30〜220の範囲で入力してください')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(getByLabelText('record-save'));
+    });
+    expect(useCase.complete).not.toHaveBeenCalled();
+  });
 });

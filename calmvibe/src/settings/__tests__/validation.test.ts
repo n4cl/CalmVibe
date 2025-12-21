@@ -58,4 +58,11 @@ describe('SettingsRepository validation (memory)', () => {
     const loaded = await r.get();
     expect(loaded).toEqual(values);
   });
+
+  it('上限120のbpmは許容される', async () => {
+    const r = repo();
+    await r.save({ ...defaultSettings, bpm: 120 });
+    const loaded = await r.get();
+    expect(loaded.bpm).toBe(120);
+  });
 });
