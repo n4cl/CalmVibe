@@ -33,6 +33,9 @@ const createRepo = (data: SessionRecord[]): SessionRepository => ({
   async save() {
     throw new Error('not used');
   },
+  async update() {
+    throw new Error('not used');
+  },
   async list() {
     return data;
   },
@@ -87,7 +90,11 @@ describe('LogsScreen', () => {
   });
 
   it('履歴詳細から編集モーダルを開き、既存値を初期表示する', async () => {
-    const repo = createRepo(records);
+    const update = jest.fn(async () => undefined);
+    const repo = {
+      ...createRepo(records),
+      update,
+    };
     const { getByLabelText, getByText, findByTestId } = render(<LogsScreen repo={repo} />);
 
     await waitFor(() => {
@@ -102,6 +109,19 @@ describe('LogsScreen', () => {
     expect(modal).toBeTruthy();
     const preHrInput = getByLabelText('preHr-input');
     expect(preHrInput.props.value).toBe('85');
+    await act(async () => {
+      fireEvent.press(getByLabelText('record-save'));
+    });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: '2',
+        guideType: 'VIBRATION',
+        preHr: 85,
+        postHr: 70,
+        improvement: 3,
+        bpm: 60,
+      })
+    );
   });
 
   it('履歴が無い場合に空メッセージを表示する', async () => {
@@ -115,6 +135,9 @@ describe('LogsScreen', () => {
   it('末尾到達で追加ロードし、履歴を追記する', async () => {
     const pagedRepo: SessionRepository = {
       async save() {
+        throw new Error('not used');
+      },
+      async update() {
         throw new Error('not used');
       },
       async list() {

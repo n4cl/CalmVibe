@@ -16,6 +16,16 @@ export type SessionListCursor = {
   id: string;
 };
 
+export type SessionRecordUpdate = {
+  id: string;
+  guideType: 'VIBRATION' | 'BREATH';
+  bpm?: number;
+  preHr?: number;
+  postHr?: number;
+  improvement?: number;
+  breathConfig?: unknown;
+};
+
 export type SessionPageResult = {
   records: SessionRecord[];
   nextCursor?: SessionListCursor | null;
@@ -24,6 +34,7 @@ export type SessionPageResult = {
 
 export interface SessionRepository {
   save(record: SessionRecord): Promise<void>;
+  update(input: SessionRecordUpdate): Promise<void>;
   list(): Promise<SessionRecord[]>;
   listPage(input: { limit: number; cursor?: SessionListCursor | null }): Promise<SessionPageResult>;
   get(id: string): Promise<SessionRecord | null>;

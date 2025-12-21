@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SessionListCursor, SessionRepository, SessionRecord } from '../src/session/types';
+import { SessionListCursor, SessionRecordUpdate, SessionRepository, SessionRecord } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 import RecordModal, { RecordDraft } from '../components/record-modal';
 
@@ -68,25 +68,15 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setEditVisible(true);
   };
 
-  const applyEdit = () => {
+  const applyEdit = async () => {
     if (!editDraft || !editTargetId) return;
+    const update = buildUpdate(editDraft, editTargetId, editSource);
+    await repo.update(update);
+    if (!mountedRef.current) return;
     setData((prev) =>
       prev.map((record) => {
         if (record.id !== editTargetId) return record;
-        const nextGuideType = editDraft.guideType;
-        const nextBreath =
-          nextGuideType === 'BREATH'
-            ? editDraft.breathSummary ?? record.breathConfig
-            : undefined;
-        return {
-          ...record,
-          guideType: nextGuideType,
-          bpm: nextGuideType === 'VIBRATION' ? editDraft.bpm ?? record.bpm : undefined,
-          preHr: editDraft.preHr ? Number(editDraft.preHr) : undefined,
-          postHr: editDraft.postHr ? Number(editDraft.postHr) : undefined,
-          improvement: editDraft.improvement ? Number(editDraft.improvement) : undefined,
-          breathConfig: nextBreath,
-        };
+        return applyUpdateToRecord(record, update);
       })
     );
     setEditVisible(false);
@@ -232,6 +222,37 @@ const mergeRecords = (prev: SessionRecord[], next: SessionRecord[]) => {
   });
   return Array.from(map.values());
 };
+
+const buildUpdate = (
+  draft: RecordDraft,
+  id: string,
+  source: SessionRecord | null
+): SessionRecordUpdate => {
+  const guideType = draft.guideType;
+  const breathConfig =
+    guideType === 'BREATH'
+      ? draft.breathSummary ?? source?.breathConfig
+      : undefined;
+  return {
+    id,
+    guideType,
+    bpm: guideType === 'VIBRATION' ? draft.bpm ?? source?.bpm : undefined,
+    preHr: draft.preHr ? Number(draft.preHr) : undefined,
+    postHr: draft.postHr ? Number(draft.postHr) : undefined,
+    improvement: draft.improvement ? Number(draft.improvement) : undefined,
+    breathConfig,
+  };
+};
+
+const applyUpdateToRecord = (record: SessionRecord, update: SessionRecordUpdate): SessionRecord => ({
+  ...record,
+  guideType: update.guideType,
+  bpm: update.bpm,
+  preHr: update.preHr,
+  postHr: update.postHr,
+  improvement: update.improvement,
+  breathConfig: update.breathConfig,
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24 },

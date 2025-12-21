@@ -1,4 +1,4 @@
-import { SessionListCursor, SessionPageResult, SessionRecord, SessionRepository } from './types';
+import { SessionListCursor, SessionPageResult, SessionRecord, SessionRepository, SessionRecordUpdate } from './types';
 
 /**
  * Web用のメモリ実装。永続化は行わない。
@@ -10,6 +10,21 @@ export class SqliteSessionRepository implements SessionRepository {
     // idを内部で付ける
     const nextId = String(this.store.length + 1);
     this.store.push({ ...record, id: nextId });
+  }
+
+  async update(input: SessionRecordUpdate): Promise<void> {
+    const index = this.store.findIndex((record) => record.id === input.id);
+    if (index === -1) return;
+    const current = this.store[index];
+    this.store[index] = {
+      ...current,
+      guideType: input.guideType,
+      bpm: input.bpm,
+      preHr: input.preHr,
+      postHr: input.postHr,
+      improvement: input.improvement,
+      breathConfig: input.breathConfig,
+    };
   }
 
   async list(): Promise<SessionRecord[]> {

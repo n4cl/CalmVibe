@@ -26,6 +26,7 @@ const createMocks = () => {
   };
   const sessionRepo: SessionRepository = {
     save: jest.fn(),
+    update: jest.fn(),
     list: jest.fn(),
     listPage: jest.fn(),
     get: jest.fn(),

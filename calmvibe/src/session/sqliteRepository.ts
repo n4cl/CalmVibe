@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { SessionListCursor, SessionRecord, SessionRepository, SessionPageResult } from './types';
+import { SessionListCursor, SessionRecord, SessionRepository, SessionPageResult, SessionRecordUpdate } from './types';
 
 const DB_NAME = 'calmvibe.db';
 
@@ -121,6 +121,23 @@ export class SqliteSessionRepository implements SessionRepository {
         record.improvement ?? null,
         record.breathConfig ? JSON.stringify(record.breathConfig) : null,
         null,
+      ]
+    );
+  }
+
+  async update(input: SessionRecordUpdate): Promise<void> {
+    this.db.runSync(
+      `UPDATE session_records
+       SET guideType = ?, bpm = ?, preHr = ?, postHr = ?, improvement = ?, breathConfig = ?
+       WHERE id = ?`,
+      [
+        input.guideType,
+        input.bpm ?? null,
+        input.preHr ?? null,
+        input.postHr ?? null,
+        input.improvement ?? null,
+        input.breathConfig ? JSON.stringify(input.breathConfig) : null,
+        input.id,
       ]
     );
   }
