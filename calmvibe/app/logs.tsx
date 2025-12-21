@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SessionListCursor, SessionRepository, SessionRecord } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
+import RecordModal, { RecordDraft } from '../components/record-modal';
 
 type Props = {
   repo?: SessionRepository;
@@ -18,6 +19,10 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const [selected, setSelected] = useState<SessionRecord | null>(null);
   const [cursor, setCursor] = useState<SessionListCursor | null>(null);
   const [hasNext, setHasNext] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+  const [editDraft, setEditDraft] = useState<RecordDraft | null>(null);
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
+  const [editSource, setEditSource] = useState<SessionRecord | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -48,6 +53,46 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setHasNext(page.hasNext);
     setLoadingMore(false);
   }, [cursor, hasNext, loading, loadingMore, repo]);
+
+  const openEdit = (record: SessionRecord) => {
+    setEditSource(record);
+    setEditTargetId(record.id);
+    setEditDraft({
+      guideType: record.guideType,
+      bpm: record.bpm,
+      preHr: record.preHr !== undefined ? String(record.preHr) : '',
+      postHr: record.postHr !== undefined ? String(record.postHr) : '',
+      improvement: record.improvement !== undefined ? String(record.improvement) : '',
+      breathSummary: typeof record.breathConfig === 'string' ? record.breathConfig : undefined,
+    });
+    setEditVisible(true);
+  };
+
+  const applyEdit = () => {
+    if (!editDraft || !editTargetId) return;
+    setData((prev) =>
+      prev.map((record) => {
+        if (record.id !== editTargetId) return record;
+        const nextGuideType = editDraft.guideType;
+        const nextBreath =
+          nextGuideType === 'BREATH'
+            ? editDraft.breathSummary ?? record.breathConfig
+            : undefined;
+        return {
+          ...record,
+          guideType: nextGuideType,
+          bpm: nextGuideType === 'VIBRATION' ? editDraft.bpm ?? record.bpm : undefined,
+          preHr: editDraft.preHr ? Number(editDraft.preHr) : undefined,
+          postHr: editDraft.postHr ? Number(editDraft.postHr) : undefined,
+          improvement: editDraft.improvement ? Number(editDraft.improvement) : undefined,
+          breathConfig: nextBreath,
+        };
+      })
+    );
+    setEditVisible(false);
+    setEditTargetId(null);
+    setEditSource(null);
+  };
 
   if (loading) {
     return (
@@ -103,12 +148,49 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
             <Text style={styles.meta}>開始心拍: {selected.preHr ?? '-'}</Text>
             <Text style={styles.meta}>終了心拍: {selected.postHr ?? '-'}</Text>
             <Text style={styles.meta}>改善: {selected.improvement ?? '-'}</Text>
-            <Pressable style={[styles.modalButton, styles.modalClose]} onPress={() => setSelected(null)}>
-              <Text style={styles.modalButtonLabel}>閉じる</Text>
-            </Pressable>
+            <View style={styles.detailActions}>
+              <Pressable
+                accessibilityLabel="log-edit"
+                style={[styles.modalButton, styles.modalEdit]}
+                onPress={() => {
+                  openEdit(selected);
+                  setSelected(null);
+                }}
+              >
+                <Text style={styles.modalButtonLabel}>編集する</Text>
+              </Pressable>
+              <Pressable style={[styles.modalButton, styles.modalClose]} onPress={() => setSelected(null)}>
+                <Text style={styles.modalButtonLabel}>閉じる</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       )}
+      <RecordModal
+        visible={editVisible}
+        draft={editDraft}
+        title="履歴編集"
+        onClose={() => setEditVisible(false)}
+        onSave={applyEdit}
+        onChange={setEditDraft}
+        onGuideTypeChange={(guideType, draft) => {
+          if (!editSource) return { ...draft, guideType };
+          if (guideType === 'VIBRATION') {
+            return {
+              ...draft,
+              guideType,
+              bpm: editSource.bpm,
+              breathSummary: undefined,
+            };
+          }
+          return {
+            ...draft,
+            guideType,
+            bpm: undefined,
+            breathSummary: typeof editSource.breathConfig === 'string' ? editSource.breathConfig : undefined,
+          };
+        }}
+      />
     </View>
   );
 }
@@ -167,6 +249,8 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: '700' },
   modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignSelf: 'flex-end' },
   modalClose: { backgroundColor: '#e5e7eb' },
+  modalEdit: { backgroundColor: '#2563eb' },
   modalButtonLabel: { color: '#111', fontWeight: '700' },
   footer: { paddingVertical: 16 },
+  detailActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
 });

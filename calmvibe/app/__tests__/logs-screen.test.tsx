@@ -86,6 +86,24 @@ describe('LogsScreen', () => {
     expect(getByText(/ガイド: 心拍ガイド/)).toBeTruthy();
   });
 
+  it('履歴詳細から編集モーダルを開き、既存値を初期表示する', async () => {
+    const repo = createRepo(records);
+    const { getByLabelText, getByText, findByTestId } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴')).toBeTruthy();
+    });
+
+    fireEvent.press(getByLabelText('log-item-2'));
+    await findByTestId('log-detail-modal');
+
+    fireEvent.press(getByLabelText('log-edit'));
+    const modal = await findByTestId('record-modal');
+    expect(modal).toBeTruthy();
+    const preHrInput = getByLabelText('preHr-input');
+    expect(preHrInput.props.value).toBe('85');
+  });
+
   it('履歴が無い場合に空メッセージを表示する', async () => {
     const repo = createRepo([]);
     const { getByText } = render(<LogsScreen repo={repo} />);
