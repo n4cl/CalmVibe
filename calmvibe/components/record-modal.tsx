@@ -1,14 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-
-export type RecordDraft = {
-  guideType: 'VIBRATION' | 'BREATH';
-  bpm?: number;
-  preHr?: string;
-  postHr?: string;
-  improvement?: string;
-  breathSummary?: string;
-};
+import { RecordDraft } from '../src/session/types';
 
 type Props = {
   visible: boolean;

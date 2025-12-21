@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, cleanup, act } from '@testing-library/react-native';
 import SessionScreen from '../session';
+import { SessionViewModel } from '../../src/session/sessionViewModel';
 import { SettingsRepository, SettingsValues, defaultSettings } from '../../src/settings/types';
 import { GuidanceListener } from '../../src/guidance';
 
@@ -89,7 +90,7 @@ describe('SessionScreen settings (vibration only)', () => {
     const { getByText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
     await findByText('時間: 180秒');
 
-    const plus = getByText('+時間');
+    const plus = getByText('+30s');
     act(() => {
       fireEvent(plus, 'pressIn');
       jest.advanceTimersByTime(350);
@@ -124,7 +125,7 @@ describe('SessionScreen breath settings', () => {
 
     await findByText('呼吸ガイド');
     fireEvent.press(getByText('呼吸ガイド'));
-    await findByText('呼吸プリセット');
+    await findByText(/呼吸プリセット/);
 
     fireEvent.press(getByText('4-4 (5回)'));
     await findByText('呼吸プリセット: 吸4-吐4 (5回)');
@@ -288,5 +289,26 @@ describe('SessionScreen manual record modal', () => {
       fireEvent.press(getByLabelText('record-save'));
     });
     expect(useCase.complete).not.toHaveBeenCalled();
+  });
+
+  it('画面が再マウントされても入力中の設定を保持する', async () => {
+    const repo = createRepo();
+    const useCase = createUseCaseMock();
+    const viewModel = new SessionViewModel({ settingsRepo: repo, useCase: useCase as any });
+    const { getByText, findByText, unmount } = render(
+      <SessionScreen settingsRepo={repo} useCase={useCase as any} viewModel={viewModel} />
+    );
+
+    await findByText('セッション開始');
+    fireEvent.press(getByText('+BPM'));
+    expect(getByText('BPM: 61')).toBeTruthy();
+
+    unmount();
+
+    const { getByText: getByText2, findByText: findByText2 } = render(
+      <SessionScreen settingsRepo={repo} useCase={useCase as any} viewModel={viewModel} />
+    );
+    await findByText2('セッション開始');
+    expect(getByText2('BPM: 61')).toBeTruthy();
   });
 });

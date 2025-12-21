@@ -11,6 +11,8 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <Tabs
         initialRouteName="session"
+        detachInactiveScreens={false}
+        lazy={false}
         screenOptions={{
           headerShown: false,
         }}>

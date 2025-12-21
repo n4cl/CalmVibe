@@ -11,6 +11,15 @@ export type SessionRecord = {
   breathConfig?: unknown;
 };
 
+export type RecordDraft = {
+  guideType: 'VIBRATION' | 'BREATH';
+  bpm?: number;
+  preHr?: string;
+  postHr?: string;
+  improvement?: string;
+  breathSummary?: string;
+};
+
 export type SessionListCursor = {
   recordedAt: string;
   id: string;

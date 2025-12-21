@@ -1,16 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { VisualGuide, GuidePhase } from './session/_visualGuide';
-import { SettingsRepository, SettingsValues, BreathPattern } from '../src/settings/types';
-import { SqliteSettingsRepository } from '../src/settings/sqliteRepository';
-import { GuidanceListener, SimpleGuidanceEngine, ExpoHapticsAdapter } from '../src/guidance';
+import { VisualGuide } from './session/_visualGuide';
+import { SettingsRepository, BreathPattern } from '../src/settings/types';
 import { SessionUseCase } from '../src/session/useCase';
-import { SqliteSessionRepository } from '../src/session/sqliteRepository';
-import RecordModal, { RecordDraft } from '../components/record-modal';
+import RecordModal from '../components/record-modal';
+import { SessionViewModel, getSessionViewModel } from '../src/session/sessionViewModel';
 
 export type SessionScreenProps = {
   settingsRepo?: SettingsRepository;
   useCase?: SessionUseCase;
+  viewModel?: SessionViewModel;
 };
 
 const breathPresets: { label: string; pattern: BreathPattern }[] = [
@@ -18,36 +17,17 @@ const breathPresets: { label: string; pattern: BreathPattern }[] = [
   { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
 ];
 
-const buildBreathSummary = (values: SettingsValues) =>
-  values.breath.type === 'three-phase'
-    ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}`
-    : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`;
+export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, viewModel: injectedViewModel }: SessionScreenProps) {
+  const viewModel = useMemo(() => {
+    if (injectedViewModel) return injectedViewModel;
+    if (injectedUseCase || settingsRepo) {
+      return new SessionViewModel({ useCase: injectedUseCase, settingsRepo });
+    }
+    return getSessionViewModel();
+  }, [injectedViewModel, injectedUseCase, settingsRepo]);
+  const state = useSessionViewModel(viewModel);
+  const repeatTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }: SessionScreenProps) {
-  const repo = useMemo<SettingsRepository>(() => settingsRepo ?? new SqliteSettingsRepository(), [settingsRepo]);
-  const useCase = useMemo<SessionUseCase>(
-    () =>
-      injectedUseCase ??
-      new SessionUseCase(
-        new SimpleGuidanceEngine(new ExpoHapticsAdapter()),
-        repo,
-        new SqliteSessionRepository()
-      ),
-    [repo, injectedUseCase]
-  );
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [values, setValues] = useState<SettingsValues | null>(null);
-  const [running, setRunning] = useState<'none' | 'vibration' | 'breath'>('none');
-  const [phase, setPhase] = useState<GuidePhase>('PULSE');
-  const [guideTick, setGuideTick] = useState(0);
-  const runningRef = React.useRef<'none' | 'vibration' | 'breath'>('none');
-  const [selectedMode, setSelectedMode] = useState<'VIBRATION' | 'BREATH'>('VIBRATION');
-  const [recordVisible, setRecordVisible] = useState(false);
-  const [recordDraft, setRecordDraft] = useState<RecordDraft | null>(null);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
-  const [hapticsNotice, setHapticsNotice] = useState<string | null>(null);
-  const repeatTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopRepeat = () => {
     if (repeatTimer.current) {
       clearTimeout(repeatTimer.current);
@@ -61,224 +41,87 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
       repeatTimer.current = setTimeout(tick, 120);
     }, 350);
   };
+
   useEffect(() => stopRepeat, []);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const loaded = await repo.get();
-      if (mounted) {
-        setValues(loaded);
-        setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [repo]);
+    void viewModel.load();
+  }, [viewModel]);
 
-  useEffect(() => {
-    setSettingsError(null);
-  }, [values]);
-
-  const changeBpm = (delta: number) => {
-    setValues((prev) => {
-      if (!prev) return prev;
-      const next = Math.min(120, Math.max(40, prev.bpm + delta));
-      if (runningRef.current === 'vibration') {
-        void useCase.updateVibrationBpm?.(next);
-      }
-      return { ...prev, bpm: next };
-    });
-  };
-
-  const changeDuration = (delta: number) => {
-    setValues((prev) => {
-      if (!prev) return prev;
-      if (prev.durationSec === null) return prev; // 無制限時はスキップ
-      const next = Math.min(300, Math.max(60, prev.durationSec + delta));
-      return { ...prev, durationSec: next };
-    });
-  };
-
-  const toggleDurationInfinite = () => {
-    setValues((prev) => {
-      if (!prev) return prev;
-      return { ...prev, durationSec: prev.durationSec === null ? 180 : null };
-    });
-  };
-
-  const setBreath = (pattern: BreathPattern) => {
-    if (!values) return;
-    setValues({ ...values, breath: pattern });
-  };
-
-  const changeBreathField = (key: 'inhaleSec' | 'holdSec' | 'exhaleSec', delta: number) => {
-    if (!values) return;
-    if (values.breath.type === 'two-phase' && key === 'holdSec') return;
-    const next = Math.max(1, (values.breath as any)[key] + delta);
-    if (values.breath.type === 'two-phase') {
-      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
-    } else {
-      setValues({ ...values, breath: { ...values.breath, [key]: next } as BreathPattern });
-    }
-  };
-
-  const changeCycles = (delta: number | 'inf') => {
-    if (!values) return;
-    if (delta === 'inf') {
-      setValues({ ...values, breath: { ...values.breath, cycles: null } });
-      return;
-    }
-    const current = values.breath.cycles ?? 0;
-    const next = Math.max(1, current + delta);
-    setValues({ ...values, breath: { ...values.breath, cycles: next } });
-  };
-
-  const save = async () => {
-    if (!values) return;
-    const error = validateSettings(values);
-    if (error) {
-      setSettingsError(error);
-      return;
-    }
-    setSaving(true);
-    const saved = await retryOnce(() => repo.save(values));
-    setSaving(false);
-    if (!saved) {
-      Alert.alert('保存に失敗しました', 'もう一度お試しください');
-      return;
-    }
-    setSettingsError(null);
-  };
-
-  const handleRecordGuideTypeChange = (guideType: 'VIBRATION' | 'BREATH', draft: RecordDraft) => {
-    if (!values) return { ...draft, guideType };
-    return {
-      ...draft,
-      guideType,
-      bpm: guideType === 'VIBRATION' ? values.bpm : undefined,
-      breathSummary: guideType === 'BREATH' ? buildBreathSummary(values) : undefined,
-    };
-  };
-
-  const listener: GuidanceListener = {
-    onStep: (step) => {
-      if (step.phase) setPhase(step.phase as GuidePhase);
-      setGuideTick((t) => t + 1);
-    },
-    onComplete: () => {
-      setRunning('none');
-      runningRef.current = 'none';
-      setGuideTick((t) => t + 1);
-    },
-    onStop: () => {
-      setRunning('none');
-      runningRef.current = 'none';
-      setGuideTick((t) => t + 1);
-    },
-    onHapticsError: () => {
-      if (!hapticsNotice) {
-        setHapticsNotice('振動が利用できないため、視覚ガイドのみで継続します。');
-      }
-    },
-  };
-
-  const resetPhaseForMode = (mode: 'VIBRATION' | 'BREATH') => (mode === 'VIBRATION' ? 'PULSE' : 'INHALE');
-
-  const stop = async () => {
-    if (runningRef.current === 'none') return;
-    await useCase.stop();
-    setRunning('none');
-    runningRef.current = 'none';
-    setPhase(resetPhaseForMode(selectedMode));
-    setGuideTick((t) => t + 1);
-  };
-
-  const start = async () => {
-    if (!values || runningRef.current !== 'none') return;
-    setHapticsNotice(null);
-    const res = await useCase.start({ mode: selectedMode }, listener);
-    if (res.ok) {
-      const runMode = selectedMode === 'VIBRATION' ? 'vibration' : 'breath';
-      setRunning(runMode);
-      runningRef.current = runMode;
-      setPhase(selectedMode === 'VIBRATION' ? 'PULSE' : 'INHALE');
-    }
-  };
-
-  if (loading || !values) {
+  if (state.loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.container, styles.center]}>
         <ActivityIndicator />
-        <Text>読み込み中...</Text>
+        <Text style={styles.body}>読み込み中...</Text>
       </View>
     );
   }
+
+  if (!state.values) return null;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>セッション開始</Text>
       <View style={styles.modeRow}>
         <Pressable
-          style={[styles.modeChip, selectedMode === 'VIBRATION' && styles.modeChipActive]}
+          style={[styles.modeChip, state.selectedMode === 'VIBRATION' && styles.modeChipActive]}
           onPress={() => {
-            if (running !== 'none' && running !== 'vibration') return;
-            setSelectedMode('VIBRATION');
-            setPhase(resetPhaseForMode('VIBRATION'));
-            setGuideTick((t) => t + 1);
+            if (state.running !== 'none' && state.running !== 'vibration') return;
+            viewModel.setSelectedMode('VIBRATION');
           }}
-          disabled={running !== 'none' && running !== 'vibration'}
+          disabled={state.running !== 'none' && state.running !== 'vibration'}
         >
-          <Text style={[styles.modeLabel, selectedMode === 'VIBRATION' && styles.modeLabelActive]}>心拍ガイド</Text>
+          <Text style={[styles.modeLabel, state.selectedMode === 'VIBRATION' && styles.modeLabelActive]}>心拍ガイド</Text>
         </Pressable>
         <Pressable
-          style={[styles.modeChip, selectedMode === 'BREATH' && styles.modeChipActive]}
+          style={[styles.modeChip, state.selectedMode === 'BREATH' && styles.modeChipActive]}
           onPress={() => {
-            if (running !== 'none' && running !== 'breath') return;
-            setSelectedMode('BREATH');
-            setPhase(resetPhaseForMode('BREATH'));
-            setGuideTick((t) => t + 1);
+            if (state.running !== 'none' && state.running !== 'breath') return;
+            viewModel.setSelectedMode('BREATH');
           }}
-          disabled={running !== 'none' && running !== 'breath'}
+          disabled={state.running !== 'none' && state.running !== 'breath'}
         >
-          <Text style={[styles.modeLabel, selectedMode === 'BREATH' && styles.modeLabelActive]}>呼吸ガイド</Text>
+          <Text style={[styles.modeLabel, state.selectedMode === 'BREATH' && styles.modeLabelActive]}>呼吸ガイド</Text>
         </Pressable>
       </View>
       <VisualGuide
-        phase={phase}
-        tick={guideTick}
-        paused={running === 'none'}
-        mode={selectedMode}
+        phase={state.phase}
+        tick={state.guideTick}
+        paused={state.running === 'none'}
+        mode={state.selectedMode}
         phaseDurations={
-          running === 'breath' && values
+          state.running === 'breath'
             ? {
-                INHALE: values.breath.inhaleSec * 1000,
-                HOLD: values.breath.type === 'three-phase' ? values.breath.holdSec * 1000 : undefined,
-                EXHALE: values.breath.exhaleSec * 1000,
+                INHALE: state.values.breath.inhaleSec * 1000,
+                HOLD: state.values.breath.type === 'three-phase' ? state.values.breath.holdSec * 1000 : undefined,
+                EXHALE: state.values.breath.exhaleSec * 1000,
               }
             : undefined
         }
         testID="visual-guide"
-        accessibilityLabel={running === 'none' ? '待機中' : phase}
+        accessibilityLabel={state.running === 'none' ? '待機中' : state.phase}
       />
       <View style={styles.card}>
         <View style={styles.actionRow}>
           <Pressable
             style={[
               styles.actionButton,
-              running !== 'none' && styles.actionButtonDisabled,
-              running !== 'none' && styles.previewActive,
+              state.running !== 'none' && styles.actionButtonDisabled,
+              state.running !== 'none' && styles.previewActive,
             ]}
-            onPress={start}
-            disabled={running !== 'none'}
+            onPress={async () => {
+              await viewModel.start();
+            }}
+            disabled={state.running !== 'none'}
           >
             <Text style={styles.saveLabel}>開始</Text>
           </Pressable>
           <Pressable
-            style={[styles.actionButton, running === 'none' && styles.actionButtonDisabled]}
-            onPress={stop}
-            disabled={running === 'none'}
+            style={[styles.actionButton, state.running === 'none' && styles.actionButtonDisabled]}
+            onPress={async () => {
+              await viewModel.stop();
+            }}
+            disabled={state.running === 'none'}
           >
             <Text style={styles.saveLabel}>停止</Text>
           </Pressable>
@@ -287,50 +130,37 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
           <Pressable
             style={styles.recordButton}
             onPress={() => {
-              const mode = runningRef.current === 'vibration' ? 'VIBRATION' : runningRef.current === 'breath' ? 'BREATH' : selectedMode;
-              const draft = {
-                guideType: mode,
-                bpm: mode === 'VIBRATION' ? values?.bpm : undefined,
-                breathSummary:
-                  mode === 'BREATH' && values
-                    ? buildBreathSummary(values)
-                    : undefined,
-                preHr: '',
-                postHr: '',
-                improvement: '',
-              };
-              setRecordDraft(draft);
-              setRecordVisible(true);
+              viewModel.openRecord();
             }}
           >
             <Text style={styles.recordLabel}>記録する</Text>
           </Pressable>
         </View>
-      <Text style={styles.summary}>
-        状態: {running === 'none' ? '停止中' : running === 'vibration' ? '心拍ガイド実行中' : '呼吸ガイド実行中'}
-      </Text>
-      {hapticsNotice && <Text style={styles.errorText}>{hapticsNotice}</Text>}
-    </View>
+        <Text style={styles.summary}>
+          状態: {state.running === 'none' ? '停止中' : state.running === 'vibration' ? '心拍ガイド実行中' : '呼吸ガイド実行中'}
+        </Text>
+        {state.hapticsNotice && <Text style={styles.errorText}>{state.hapticsNotice}</Text>}
+      </View>
 
       <Text style={styles.title}>設定</Text>
 
-      {selectedMode === 'VIBRATION' && (
+      {state.selectedMode === 'VIBRATION' && (
         <View style={styles.card}>
           <Text style={styles.subTitle}>心拍ガイド設定</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>BPM: {values.bpm}</Text>
+            <Text style={styles.label}>BPM: {state.values.bpm}</Text>
             <Pressable
               style={styles.button}
-              onPress={() => changeBpm(-1)}
-              onPressIn={() => startRepeat(() => changeBpm(-1))}
+              onPress={() => viewModel.changeBpm(-1)}
+              onPressIn={() => startRepeat(() => viewModel.changeBpm(-1))}
               onPressOut={stopRepeat}
             >
               <Text style={styles.buttonLabel}>-BPM</Text>
             </Pressable>
             <Pressable
               style={styles.button}
-              onPress={() => changeBpm(+1)}
-              onPressIn={() => startRepeat(() => changeBpm(+1))}
+              onPress={() => viewModel.changeBpm(+1)}
+              onPressIn={() => startRepeat(() => viewModel.changeBpm(+1))}
               onPressOut={stopRepeat}
             >
               <Text style={styles.buttonLabel}>+BPM</Text>
@@ -338,145 +168,154 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
           </View>
 
           <View style={styles.row}>
-            <Text style={styles.label}>
-              時間: {values.durationSec === null ? '∞' : `${values.durationSec}秒`}
-            </Text>
-            {values.durationSec !== null && (
-              <>
-                <Pressable
-                  style={styles.button}
-                  onPress={() => changeDuration(-30)}
-                  onPressIn={() => startRepeat(() => changeDuration(-30))}
-                  onPressOut={stopRepeat}
-                >
-                  <Text style={styles.buttonLabel}>-時間</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.button}
-                  onPress={() => changeDuration(+30)}
-                  onPressIn={() => startRepeat(() => changeDuration(+30))}
-                  onPressOut={stopRepeat}
-                >
-                  <Text style={styles.buttonLabel}>+時間</Text>
-                </Pressable>
-              </>
-            )}
-            <Pressable style={styles.button} onPress={toggleDurationInfinite}>
-              <Text style={styles.buttonLabel}>{values.durationSec === null ? '時間ON' : '∞にする'}</Text>
+            <Text style={styles.label}>時間: {state.values.durationSec === null ? '∞' : `${state.values.durationSec}秒`}</Text>
+            <Pressable
+              style={styles.button}
+              onPress={() => viewModel.changeDuration(-30)}
+              onPressIn={() => startRepeat(() => viewModel.changeDuration(-30))}
+              onPressOut={stopRepeat}
+            >
+              <Text style={styles.buttonLabel}>-30s</Text>
+            </Pressable>
+            <Pressable
+              style={styles.button}
+              onPress={() => viewModel.changeDuration(+30)}
+              onPressIn={() => startRepeat(() => viewModel.changeDuration(+30))}
+              onPressOut={stopRepeat}
+            >
+              <Text style={styles.buttonLabel}>+30s</Text>
+            </Pressable>
+            <Pressable style={styles.button} onPress={() => viewModel.toggleDurationInfinite()}>
+              <Text style={styles.buttonLabel}>∞にする</Text>
             </Pressable>
           </View>
         </View>
       )}
 
-      {selectedMode === 'BREATH' && (
+      {state.selectedMode === 'BREATH' && (
         <View style={styles.card}>
-          <Text style={styles.subTitle}>呼吸プリセット</Text>
+          <Text style={styles.subTitle}>呼吸ガイド設定</Text>
           <View style={styles.row}>
+            <Text style={styles.label}>プリセット</Text>
             {breathPresets.map((preset) => (
               <Pressable
                 key={preset.label}
                 style={[
                   styles.chip,
-                  values.breath.type === preset.pattern.type &&
-                    values.breath.inhaleSec === preset.pattern.inhaleSec &&
-                    ('holdSec' in preset.pattern
-                      ? (values.breath as any).holdSec === (preset.pattern as any).holdSec
-                      : values.breath.type === 'two-phase') &&
-                    values.breath.exhaleSec === preset.pattern.exhaleSec &&
-                    values.breath.cycles === preset.pattern.cycles &&
-                    styles.chipActive,
+                  state.values.breath.type === preset.pattern.type &&
+                    state.values.breath.inhaleSec === preset.pattern.inhaleSec &&
+                    state.values.breath.exhaleSec === preset.pattern.exhaleSec &&
+                    state.values.breath.cycles === preset.pattern.cycles &&
+                    (preset.pattern.type === 'two-phase' ||
+                      (state.values.breath.type === 'three-phase' &&
+                        state.values.breath.holdSec === (preset.pattern as any).holdSec))
+                    ? styles.chipActive
+                    : null,
                 ]}
-                onPress={() => setBreath(preset.pattern)}
+                onPress={() => viewModel.setBreath(preset.pattern)}
               >
-                <Text style={[styles.chipLabel, values.breath === preset.pattern && styles.chipLabelActive]}>
-                  {preset.label}
-                </Text>
+                <Text style={[styles.chipLabel, styles.chipLabelActive]}>{preset.label}</Text>
               </Pressable>
             ))}
           </View>
 
           <Text style={styles.subTitle}>フェーズ秒数</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>吸: {values.breath.inhaleSec}s</Text>
-            <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', -1)}>
+            <Text style={styles.label}>吸: {state.values.breath.inhaleSec}s</Text>
+            <Pressable style={styles.button} onPress={() => viewModel.changeBreathField('inhaleSec', -1)}>
               <Text style={styles.buttonLabel}>吸-</Text>
             </Pressable>
-            <Pressable style={styles.button} onPress={() => changeBreathField('inhaleSec', +1)}>
+            <Pressable style={styles.button} onPress={() => viewModel.changeBreathField('inhaleSec', +1)}>
               <Text style={styles.buttonLabel}>吸+</Text>
             </Pressable>
           </View>
-          {values.breath.type === 'three-phase' && (
+          {state.values.breath.type === 'three-phase' && (
             <View style={styles.row}>
-              <Text style={styles.label}>止: {values.breath.holdSec}s</Text>
-              <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', -1)}>
+              <Text style={styles.label}>止: {state.values.breath.holdSec}s</Text>
+              <Pressable style={styles.button} onPress={() => viewModel.changeBreathField('holdSec', -1)}>
                 <Text style={styles.buttonLabel}>止-</Text>
               </Pressable>
-              <Pressable style={styles.button} onPress={() => changeBreathField('holdSec', +1)}>
+              <Pressable style={styles.button} onPress={() => viewModel.changeBreathField('holdSec', +1)}>
                 <Text style={styles.buttonLabel}>止+</Text>
               </Pressable>
             </View>
           )}
           <View style={styles.row}>
-            <Text style={styles.label}>吐: {values.breath.exhaleSec}s</Text>
-            <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', -1)}>
+            <Text style={styles.label}>吐: {state.values.breath.exhaleSec}s</Text>
+            <Pressable style={styles.button} onPress={() => viewModel.changeBreathField('exhaleSec', -1)}>
               <Text style={styles.buttonLabel}>吐-</Text>
             </Pressable>
-            <Pressable style={styles.button} onPress={() => changeBreathField('exhaleSec', +1)}>
+            <Pressable style={styles.button} onPress={() => viewModel.changeBreathField('exhaleSec', +1)}>
               <Text style={styles.buttonLabel}>吐+</Text>
             </Pressable>
           </View>
 
           <View style={styles.row}>
-            <Text style={styles.label}>サイクル: {values.breath.cycles === null ? '∞' : `${values.breath.cycles}回`}</Text>
-            <Pressable style={styles.button} onPress={() => changeCycles(-1)}>
+            <Text style={styles.label}>サイクル: {state.values.breath.cycles === null ? '∞' : `${state.values.breath.cycles}回`}</Text>
+            <Pressable style={styles.button} onPress={() => viewModel.changeCycles(-1)}>
               <Text style={styles.buttonLabel}>-回</Text>
             </Pressable>
-            <Pressable style={styles.button} onPress={() => changeCycles(+1)}>
+            <Pressable style={styles.button} onPress={() => viewModel.changeCycles(+1)}>
               <Text style={styles.buttonLabel}>+回</Text>
             </Pressable>
-            <Pressable style={styles.button} onPress={() => changeCycles('inf')}>
+            <Pressable style={styles.button} onPress={() => viewModel.changeCycles('inf')}>
               <Text style={styles.buttonLabel}>∞にする</Text>
             </Pressable>
           </View>
 
           <Text style={styles.summary}>
-            呼吸プリセット: {values.breath.type === 'three-phase' ? `吸${values.breath.inhaleSec}-止${values.breath.holdSec}-吐${values.breath.exhaleSec}` : `吸${values.breath.inhaleSec}-吐${values.breath.exhaleSec}`} ({values.breath.cycles ? `${values.breath.cycles}回` : '∞'})
+            呼吸プリセット: {state.values.breath.type === 'three-phase' ? `吸${state.values.breath.inhaleSec}-止${state.values.breath.holdSec}-吐${state.values.breath.exhaleSec}` : `吸${state.values.breath.inhaleSec}-吐${state.values.breath.exhaleSec}`} ({state.values.breath.cycles ? `${state.values.breath.cycles}回` : '∞'})
           </Text>
         </View>
       )}
 
       {/* 全設定を一括保存する共通ボタン */}
-      <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={save} disabled={saving}>
-        <Text style={styles.saveLabel}>{saving ? '保存中...' : '保存'}</Text>
+      <Pressable
+        style={[styles.saveButton, state.saving && styles.saveButtonDisabled]}
+        onPress={async () => {
+          const res = await viewModel.saveSettings();
+          if (!res.ok && res.error === 'save_failed') {
+            Alert.alert('保存に失敗しました', 'もう一度お試しください');
+          }
+        }}
+        disabled={state.saving}
+      >
+        <Text style={styles.saveLabel}>{state.saving ? '保存中...' : '保存'}</Text>
       </Pressable>
-      {settingsError && <Text style={styles.errorText}>{settingsError}</Text>}
+      {state.settingsError && <Text style={styles.errorText}>{state.settingsError}</Text>}
 
       <RecordModal
-        visible={recordVisible}
-        draft={recordDraft}
-        onClose={() => setRecordVisible(false)}
+        visible={state.recordVisible}
+        draft={state.recordDraft}
+        onClose={() => viewModel.closeRecord()}
         onSave={async () => {
-          if (!recordDraft) return;
-          const res = await useCase.complete({
-            guideType: recordDraft.guideType,
-            bpm: recordDraft.bpm,
-            preHr: recordDraft.preHr ? Number(recordDraft.preHr) : undefined,
-            postHr: recordDraft.postHr ? Number(recordDraft.postHr) : undefined,
-            improvement: recordDraft.improvement ? Number(recordDraft.improvement) : undefined,
-            breathConfig: recordDraft.breathSummary,
-          });
+          const res = await viewModel.saveRecord();
           if (!res.ok) {
             Alert.alert('保存に失敗しました', 'もう一度お試しください');
-            return;
           }
-          setRecordVisible(false);
         }}
-        onChange={setRecordDraft}
-        onGuideTypeChange={handleRecordGuideTypeChange}
+        onChange={(next) => viewModel.updateRecordDraft(next)}
+        onGuideTypeChange={(guideType, draft) => {
+          viewModel.updateGuideType(guideType);
+          const current = viewModel.getState().recordDraft;
+          return current ?? draft;
+        }}
       />
     </ScrollView>
   );
 }
+
+const useSessionViewModel = (viewModel: SessionViewModel) => {
+  const [state, setState] = useState(viewModel.getState());
+  useEffect(() => {
+    setState(viewModel.getState());
+    const unsubscribe = viewModel.subscribe(() => {
+      setState(viewModel.getState());
+    });
+    return unsubscribe;
+  }, [viewModel]);
+  return state;
+};
 
 const styles = StyleSheet.create({
   container: { padding: 20, gap: 12 },
@@ -510,39 +349,6 @@ const styles = StyleSheet.create({
   recordRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   recordButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#94a3b8', backgroundColor: '#fff' },
   recordLabel: { color: '#1f2937', fontWeight: '700' },
-  // RecordModal側で共通スタイルを持つため、セッション側ではモーダルのスタイルを持たない
   errorText: { marginTop: 6, color: '#b91c1c', fontSize: 13 },
+  body: { fontSize: 16, color: '#555' },
 });
-
-const validateSettings = (values: SettingsValues) => {
-  if (values.bpm < 40 || values.bpm > 120) {
-    return 'BPMは40〜120の範囲で入力してください';
-  }
-  if (values.durationSec !== null && (values.durationSec < 60 || values.durationSec > 300)) {
-    return '時間は60〜300秒の範囲で入力してください';
-  }
-  if (values.breath.cycles !== null && values.breath.cycles < 1) {
-    return 'サイクルは1以上で入力してください';
-  }
-  if (values.breath.inhaleSec < 1 || values.breath.exhaleSec < 1) {
-    return '呼吸の秒数は1以上で入力してください';
-  }
-  if (values.breath.type === 'three-phase' && values.breath.holdSec < 1) {
-    return '止める秒数は1以上で入力してください';
-  }
-  return null;
-};
-
-const retryOnce = async (fn: () => Promise<void>) => {
-  try {
-    await fn();
-    return true;
-  } catch {
-    try {
-      await fn();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-};
