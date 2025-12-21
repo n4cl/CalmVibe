@@ -1,31 +1,53 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SessionRepository, SessionRecord } from '../src/session/types';
+import { SessionListCursor, SessionRepository, SessionRecord } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 
 type Props = {
   repo?: SessionRepository;
 };
 
+const PAGE_SIZE = 20;
+
 export default function LogsScreen({ repo: injectedRepo }: Props) {
   const repo = useMemo<SessionRepository>(() => injectedRepo ?? new SqliteSessionRepository(), [injectedRepo]);
+  const mountedRef = useRef(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [data, setData] = useState<SessionRecord[]>([]);
   const [selected, setSelected] = useState<SessionRecord | null>(null);
+  const [cursor, setCursor] = useState<SessionListCursor | null>(null);
+  const [hasNext, setHasNext] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
     (async () => {
-      const list = await repo.list();
-      if (mounted) {
-        setData(list);
-        setLoading(false);
-      }
+      setLoading(true);
+      setLoadingMore(false);
+      setCursor(null);
+      setHasNext(false);
+      const page = await repo.listPage({ limit: PAGE_SIZE, cursor: null });
+      if (!mountedRef.current) return;
+      setData(page.records);
+      setCursor(page.nextCursor ?? null);
+      setHasNext(page.hasNext);
+      setLoading(false);
     })();
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
   }, [repo]);
+
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    const page = await repo.listPage({ limit: PAGE_SIZE, cursor });
+    if (!mountedRef.current) return;
+    setData((prev) => mergeRecords(prev, page.records));
+    setCursor(page.nextCursor ?? null);
+    setHasNext(page.hasNext);
+    setLoadingMore(false);
+  }, [cursor, hasNext, loading, loadingMore, repo]);
 
   if (loading) {
     return (
@@ -49,6 +71,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>履歴</Text>
       <FlatList
+        testID="logs-list"
         data={data}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
@@ -58,6 +81,15 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={{ paddingBottom: 24 }}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footer}>
+              <ActivityIndicator />
+            </View>
+          ) : null
+        }
       />
       {selected && (
         <View style={styles.modalBackdrop} testID="log-detail-modal">
@@ -108,6 +140,17 @@ function LogCard({ record }: { record: SessionRecord }) {
   );
 }
 
+const mergeRecords = (prev: SessionRecord[], next: SessionRecord[]) => {
+  if (next.length === 0) return prev;
+  const map = new Map(prev.map((record) => [record.id, record]));
+  next.forEach((record) => {
+    if (!map.has(record.id)) {
+      map.set(record.id, record);
+    }
+  });
+  return Array.from(map.values());
+};
+
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24 },
   center: { justifyContent: 'center', alignItems: 'center' },
@@ -125,4 +168,5 @@ const styles = StyleSheet.create({
   modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignSelf: 'flex-end' },
   modalClose: { backgroundColor: '#e5e7eb' },
   modalButtonLabel: { color: '#111', fontWeight: '700' },
+  footer: { paddingVertical: 16 },
 });

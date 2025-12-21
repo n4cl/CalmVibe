@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { act, render, waitFor, fireEvent } from '@testing-library/react-native';
 import LogsScreen from '../logs';
 import { SessionRecord, SessionRepository } from '../../src/session/types';
 
@@ -92,5 +92,49 @@ describe('LogsScreen', () => {
     await waitFor(() => {
       expect(getByText('履歴がありません')).toBeTruthy();
     });
+  });
+
+  it('末尾到達で追加ロードし、履歴を追記する', async () => {
+    const pagedRepo: SessionRepository = {
+      async save() {
+        throw new Error('not used');
+      },
+      async list() {
+        return [];
+      },
+      async get() {
+        return null;
+      },
+      listPage: jest.fn(async ({ cursor }) => {
+        if (!cursor) {
+          return {
+            records: records.slice(0, 2),
+            nextCursor: { recordedAt: records[1].recordedAt, id: records[1].id },
+            hasNext: true,
+          };
+        }
+        return {
+          records: records.slice(2),
+          nextCursor: null,
+          hasNext: false,
+        };
+      }),
+    };
+
+    const { getByTestId, getByText } = render(<LogsScreen repo={pagedRepo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴')).toBeTruthy();
+    });
+
+    const list = getByTestId('logs-list');
+    await act(async () => {
+      list.props.onEndReached?.();
+    });
+
+    await waitFor(() => {
+      expect(getByText(/2025\/12\/16/)).toBeTruthy();
+    });
+    expect(pagedRepo.listPage).toHaveBeenCalledTimes(2);
   });
 });
