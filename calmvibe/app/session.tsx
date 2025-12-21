@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { VisualGuide, GuidePhase } from './session/_visualGuide';
 import { SettingsRepository, SettingsValues, BreathPattern } from '../src/settings/types';
 import { SqliteSettingsRepository } from '../src/settings/sqliteRepository';
@@ -46,6 +46,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
   const [recordVisible, setRecordVisible] = useState(false);
   const [recordDraft, setRecordDraft] = useState<RecordDraft | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [hapticsNotice, setHapticsNotice] = useState<string | null>(null);
   const repeatTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopRepeat = () => {
     if (repeatTimer.current) {
@@ -142,8 +143,12 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
       return;
     }
     setSaving(true);
-    await repo.save(values);
+    const saved = await retryOnce(() => repo.save(values));
     setSaving(false);
+    if (!saved) {
+      Alert.alert('保存に失敗しました', 'もう一度お試しください');
+      return;
+    }
     setSettingsError(null);
   };
 
@@ -172,6 +177,11 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
       runningRef.current = 'none';
       setGuideTick((t) => t + 1);
     },
+    onHapticsError: () => {
+      if (!hapticsNotice) {
+        setHapticsNotice('振動が利用できないため、視覚ガイドのみで継続します。');
+      }
+    },
   };
 
   const resetPhaseForMode = (mode: 'VIBRATION' | 'BREATH') => (mode === 'VIBRATION' ? 'PULSE' : 'INHALE');
@@ -187,6 +197,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
 
   const start = async () => {
     if (!values || runningRef.current !== 'none') return;
+    setHapticsNotice(null);
     const res = await useCase.start({ mode: selectedMode }, listener);
     if (res.ok) {
       const runMode = selectedMode === 'VIBRATION' ? 'vibration' : 'breath';
@@ -295,10 +306,11 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
             <Text style={styles.recordLabel}>記録する</Text>
           </Pressable>
         </View>
-        <Text style={styles.summary}>
-          状態: {running === 'none' ? '停止中' : running === 'vibration' ? '心拍ガイド実行中' : '呼吸ガイド実行中'}
-        </Text>
-      </View>
+      <Text style={styles.summary}>
+        状態: {running === 'none' ? '停止中' : running === 'vibration' ? '心拍ガイド実行中' : '呼吸ガイド実行中'}
+      </Text>
+      {hapticsNotice && <Text style={styles.errorText}>{hapticsNotice}</Text>}
+    </View>
 
       <Text style={styles.title}>設定</Text>
 
@@ -445,7 +457,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
         onClose={() => setRecordVisible(false)}
         onSave={async () => {
           if (!recordDraft) return;
-          await useCase.complete({
+          const res = await useCase.complete({
             guideType: recordDraft.guideType,
             bpm: recordDraft.bpm,
             preHr: recordDraft.preHr ? Number(recordDraft.preHr) : undefined,
@@ -453,6 +465,10 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase }
             improvement: recordDraft.improvement ? Number(recordDraft.improvement) : undefined,
             breathConfig: recordDraft.breathSummary,
           });
+          if (!res.ok) {
+            Alert.alert('保存に失敗しました', 'もう一度お試しください');
+            return;
+          }
           setRecordVisible(false);
         }}
         onChange={setRecordDraft}
@@ -515,4 +531,18 @@ const validateSettings = (values: SettingsValues) => {
     return '止める秒数は1以上で入力してください';
   }
   return null;
+};
+
+const retryOnce = async (fn: () => Promise<void>) => {
+  try {
+    await fn();
+    return true;
+  } catch {
+    try {
+      await fn();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 };

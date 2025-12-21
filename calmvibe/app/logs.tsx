@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SessionListCursor, SessionRecordUpdate, SessionRepository, SessionRecord } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 import RecordModal, { RecordDraft } from '../components/record-modal';
@@ -71,8 +71,12 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const applyEdit = async () => {
     if (!editDraft || !editTargetId) return;
     const update = buildUpdate(editDraft, editTargetId, editSource);
-    await repo.update(update);
+    const saved = await retryOnce(() => repo.update(update));
     if (!mountedRef.current) return;
+    if (!saved) {
+      Alert.alert('保存に失敗しました', 'もう一度お試しください');
+      return;
+    }
     setData((prev) =>
       prev.map((record) => {
         if (record.id !== editTargetId) return record;
@@ -253,6 +257,20 @@ const applyUpdateToRecord = (record: SessionRecord, update: SessionRecordUpdate)
   improvement: update.improvement,
   breathConfig: update.breathConfig,
 });
+
+const retryOnce = async (fn: () => Promise<void>) => {
+  try {
+    await fn();
+    return true;
+  } catch {
+    try {
+      await fn();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24 },

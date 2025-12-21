@@ -40,6 +40,30 @@ describe('SimpleGuidanceEngine VIBRATION', () => {
     expect(engine.isActive()).toBe(false);
   });
 
+  it('振動失敗時でも継続し、エラー通知は1回だけ行う', async () => {
+    const play = jest.fn().mockResolvedValue({ ok: false, error: 'permission' });
+    const stop = jest.fn().mockResolvedValue({ ok: true });
+    const adapter: HapticsAdapter = { play, stop };
+    const engine = new SimpleGuidanceEngine(adapter);
+    const onHapticsError = jest.fn();
+    await engine.startGuidance(
+      {
+        mode: 'VIBRATION',
+        bpm: 60,
+        durationSec: 2,
+        visualEnabled: true,
+        vibrationPattern: [0],
+      },
+      { onHapticsError }
+    );
+
+    jest.advanceTimersByTime(2000);
+    jest.runAllTimers();
+
+    expect(onHapticsError).toHaveBeenCalledTimes(1);
+    expect(engine.isActive()).toBe(false);
+  });
+
   it('二重開始を拒否する', async () => {
     const { adapter } = createAdapter();
     const engine = new SimpleGuidanceEngine(adapter);

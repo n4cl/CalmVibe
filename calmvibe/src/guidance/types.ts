@@ -25,6 +25,7 @@ export type GuidanceListener = {
   onStep?: (step: GuidanceStep) => void;
   onComplete?: () => void;
   onStop?: () => void;
+  onHapticsError?: (error: string) => void;
 };
 
 export type Result = { ok: true } | { ok: false; error: string };

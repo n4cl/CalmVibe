@@ -168,4 +168,41 @@ describe('SessionUseCase complete', () => {
     expect(record.endedAt).toBeNull();
     expect(record.recordedAt).toBeTruthy();
   });
+
+  it('保存に失敗した場合はリトライし、成功すればokを返す', async () => {
+    const { guidance, settingsRepo } = createMocks();
+    const save = jest.fn()
+      .mockRejectedValueOnce(new Error('fail'))
+      .mockResolvedValueOnce(undefined);
+    const sessionRepo: SessionRepository = {
+      save,
+      update: jest.fn(),
+      list: jest.fn(),
+      listPage: jest.fn(),
+      get: jest.fn(),
+    };
+    const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
+
+    const res = await useCase.complete({ guideType: 'VIBRATION' });
+    expect(res.ok).toBe(true);
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it('保存が連続で失敗した場合はエラーを返す', async () => {
+    const { guidance, settingsRepo } = createMocks();
+    const save = jest.fn().mockRejectedValue(new Error('fail'));
+    const sessionRepo: SessionRepository = {
+      save,
+      update: jest.fn(),
+      list: jest.fn(),
+      listPage: jest.fn(),
+      get: jest.fn(),
+    };
+    const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
+
+    const res = await useCase.complete({ guideType: 'VIBRATION' });
+    expect(res.ok).toBe(false);
+    expect(res).toEqual({ ok: false, error: 'save_failed' });
+    expect(save).toHaveBeenCalledTimes(2);
+  });
 });

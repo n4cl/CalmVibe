@@ -16,6 +16,7 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
   private intervalMs = 0;
   private durationMs = 0;
   private currentConfig?: GuidanceConfig;
+  private hapticsFailed = false;
 
   constructor(adapter: HapticsAdapter) {
     this.adapter = adapter;
@@ -30,6 +31,7 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
     if (config.durationSec <= 0) return { ok: false, error: 'invalid_duration' };
     this.listener = listener;
     this.active = true;
+    this.hapticsFailed = false;
     this.startAt = Date.now();
     this.durationMs = config.durationSec * 1000;
     this.currentConfig = { ...config };
@@ -74,7 +76,11 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
   private async playOnce(config: GuidanceConfig, phase: GuidanceStep['phase'], cycle: number = 0) {
     const pattern = config.vibrationPattern ?? [];
     if (pattern.length > 0) {
-      await this.adapter.play(pattern);
+      const res = await this.adapter.play(pattern);
+      if (!res.ok && !this.hapticsFailed) {
+        this.hapticsFailed = true;
+        this.listener?.onHapticsError?.(res.error);
+      }
     }
     const elapsedSec = Math.floor((Date.now() - this.startAt) / 1000);
     this.listener?.onStep?.({ elapsedSec, cycle, phase });
@@ -136,6 +142,7 @@ export class SimpleGuidanceEngine implements GuidanceEngine {
     this.timer = null;
     this.active = false;
     this.currentConfig = undefined;
+    this.hapticsFailed = false;
   }
 
   async updateVibrationBpm(bpm: number): Promise<Result> {

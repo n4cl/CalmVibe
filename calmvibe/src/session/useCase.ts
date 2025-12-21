@@ -106,7 +106,8 @@ export class SessionUseCase {
       improvement: input.improvement,
       breathConfig: input.breathConfig,
     };
-    await this.sessionRepo.save(record);
+    const saved = await retryOnce(() => this.sessionRepo.save(record));
+    if (!saved) return { ok: false, error: 'save_failed' };
     if (!this.active) {
       this.startedAt = null;
       this.currentMode = null;
@@ -141,6 +142,21 @@ export class SessionUseCase {
           this.active = false;
           listener.onStop?.();
         },
+        onHapticsError: (error) => listener.onHapticsError?.(error),
       };
   }
 }
+
+const retryOnce = async (fn: () => Promise<void>) => {
+  try {
+    await fn();
+    return true;
+  } catch {
+    try {
+      await fn();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
