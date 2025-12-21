@@ -11,8 +11,20 @@ export type SessionRecord = {
   breathConfig?: unknown;
 };
 
+export type SessionListCursor = {
+  recordedAt: string;
+  id: string;
+};
+
+export type SessionPageResult = {
+  records: SessionRecord[];
+  nextCursor?: SessionListCursor | null;
+  hasNext: boolean;
+};
+
 export interface SessionRepository {
   save(record: SessionRecord): Promise<void>;
   list(): Promise<SessionRecord[]>;
+  listPage(input: { limit: number; cursor?: SessionListCursor | null }): Promise<SessionPageResult>;
   get(id: string): Promise<SessionRecord | null>;
 }

@@ -36,6 +36,9 @@ const createRepo = (data: SessionRecord[]): SessionRepository => ({
   async list() {
     return data;
   },
+  async listPage() {
+    return { records: data, nextCursor: null, hasNext: false };
+  },
   async get() {
     return null;
   },

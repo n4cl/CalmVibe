@@ -27,6 +27,7 @@ const createMocks = () => {
   const sessionRepo: SessionRepository = {
     save: jest.fn(),
     list: jest.fn(),
+    listPage: jest.fn(),
     get: jest.fn(),
   };
   return { guidance, settingsRepo, sessionRepo, startGuidance, stopGuidance };
