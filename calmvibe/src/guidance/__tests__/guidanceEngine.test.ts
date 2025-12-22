@@ -108,17 +108,38 @@ describe('SimpleGuidanceEngine VIBRATION', () => {
     expect(play.mock.calls.length).toBe(callsBefore);
     expect(engine.isActive()).toBe(false);
   });
+
+  it('ドリフトが発生した場合、次回スケジュールを前倒しして補正する', async () => {
+    const { adapter } = createAdapter();
+    const engine = new SimpleGuidanceEngine(adapter);
+    const onStep = jest.fn();
+    const times = [0, 0, 2500, 2500, 2500];
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      if (times.length > 0) return times.shift() as number;
+      return 2500;
+    });
+
+    try {
+      await engine.startGuidance({
+        mode: 'VIBRATION',
+        bpm: 60,
+        durationSec: 10,
+        visualEnabled: true,
+        vibrationPattern: [0],
+      }, { onStep });
+
+      // 1回目のtick（遅延実行）
+      jest.advanceTimersByTime(1000);
+      await Promise.resolve();
+      const lastStep = onStep.mock.calls.at(-1)?.[0];
+      expect(lastStep).toEqual({ elapsedSec: 2, cycle: 2, phase: 'PULSE' });
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
 });
 
 describe('SimpleGuidanceEngine BREATH', () => {
-  beforeAll(() => {
-    jest.useRealTimers();
-  });
-
-  afterAll(() => {
-    jest.useFakeTimers();
-  });
-
   it('吸→止→吐をcycles回実行し完了する', async () => {
     const { adapter } = createAdapter();
     const engine = new SimpleGuidanceEngine(adapter);
@@ -135,11 +156,11 @@ describe('SimpleGuidanceEngine BREATH', () => {
     );
     await Promise.resolve();
 
-    // フェーズ進行を待つ（リアルタイマー）
-    await new Promise((r) => setTimeout(r, 350));
-    await new Promise((r) => setTimeout(r, 220));
-    await new Promise((r) => setTimeout(r, 420));
-    await new Promise((r) => setTimeout(r, 350 + 220 + 420));
+    const phaseDurations = [300, 200, 400, 300, 200, 400];
+    for (const duration of phaseDurations) {
+      jest.advanceTimersByTime(duration);
+      await Promise.resolve();
+    }
 
     const phases = onStep.mock.calls.map((c) => c[0].phase);
     expect(phases).toEqual(['INHALE', 'HOLD', 'EXHALE', 'INHALE', 'HOLD', 'EXHALE']);
@@ -162,7 +183,7 @@ describe('SimpleGuidanceEngine BREATH', () => {
     );
     await Promise.resolve();
 
-    await new Promise((r) => setTimeout(r, 1100));
+    jest.advanceTimersByTime(1100);
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(engine.isActive()).toBe(false);
   });
