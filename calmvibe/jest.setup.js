@@ -1,5 +1,13 @@
 import '@testing-library/jest-native/extend-expect';
 import 'react-native-gesture-handler/jestSetup';
+jest.mock('./app/session/_visualGuide', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    VisualGuide: ({ testID, accessibilityLabel }) =>
+      React.createElement(View, { testID, accessibilityLabel }),
+  };
+});
 
 // Jest環境でExpoのimport meta registryがない問題への暫定対応
 if (!globalThis.__ExpoImportMetaRegistry) {
