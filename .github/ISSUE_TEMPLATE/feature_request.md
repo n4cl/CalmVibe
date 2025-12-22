@@ -31,9 +31,6 @@ labels: enhancement
 ## 代替案
 <!-- 他に考えた案があれば記載 -->
 
-## 優先度
-<!-- High / Medium / Low / None のいずれか -->
-
 ## 関連Issue
 <!-- 例: #123 / 無ければ「なし」 -->
 
