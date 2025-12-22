@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SessionListCursor, SessionRecordUpdate, SessionRepository, SessionRecord } from '../src/session/types';
+import { RecordDraft, SessionListCursor, SessionRecord, SessionRecordUpdate, SessionRepository } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 import RecordModal from '../components/record-modal';
-import { RecordDraft } from '../src/session/types';
 
 type Props = {
   repo?: SessionRepository;
