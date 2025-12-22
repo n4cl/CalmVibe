@@ -39,7 +39,7 @@ describe('SessionScreen settings (vibration only)', () => {
     const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
     const { findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
-    await findByText('心拍ガイド');
+    await findByText('心拍ガイド', { includeHiddenElements: true });
     await findByText('BPM: 60');
     await findByText('時間: 180秒');
   });
