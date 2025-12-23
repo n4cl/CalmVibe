@@ -65,9 +65,6 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, 
       <View style={styles.modeRow}>
         <Pressable
           style={[styles.modeChip, state.selectedMode === 'VIBRATION' && styles.modeChipActive]}
-          accessibilityRole="button"
-          accessibilityLabel="心拍ガイド"
-          testID="mode-vibration"
           onPress={() => {
             if (state.running !== 'none' && state.running !== 'vibration') return;
             viewModel.setSelectedMode('VIBRATION');
@@ -78,9 +75,6 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, 
         </Pressable>
         <Pressable
           style={[styles.modeChip, state.selectedMode === 'BREATH' && styles.modeChipActive]}
-          accessibilityRole="button"
-          accessibilityLabel="呼吸ガイド"
-          testID="mode-breath"
           onPress={() => {
             if (state.running !== 'none' && state.running !== 'breath') return;
             viewModel.setSelectedMode('BREATH');
