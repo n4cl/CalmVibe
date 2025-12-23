@@ -120,6 +120,14 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
       <View style={[styles.container, styles.center]}>
         <Text style={styles.title}>履歴</Text>
         <Text style={styles.body}>履歴がありません</Text>
+        <FlatList
+          testID="logs-list"
+          data={[]}
+          renderItem={null as never}
+          refreshing={refreshing}
+          onRefresh={refreshLatest}
+          contentContainerStyle={{ flexGrow: 1 }}
+        />
       </View>
     );
   }

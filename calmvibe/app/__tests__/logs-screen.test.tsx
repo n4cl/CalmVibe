@@ -146,6 +146,30 @@ describe('LogsScreen', () => {
     });
   });
 
+  it('履歴が空でもプル更新を実行できる', async () => {
+    const listPage = jest.fn(async () => ({
+      records: [],
+      nextCursor: null,
+      hasNext: false,
+    }));
+    const repo: SessionRepository = {
+      ...createRepo([]),
+      listPage,
+    };
+    const { getByTestId, getByText } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴がありません')).toBeTruthy();
+    });
+
+    const list = getByTestId('logs-list');
+    await act(async () => {
+      await list.props.onRefresh?.();
+    });
+
+    expect(listPage).toHaveBeenCalledTimes(2);
+  });
+
   it('末尾到達で追加ロードし、履歴を追記する', async () => {
     const pagedRepo: SessionRepository = {
       async save() {
