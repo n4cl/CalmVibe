@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { RecordDraft, SessionListCursor, SessionRecord, SessionRecordUpdate, SessionRepository } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 import RecordModal from '../components/record-modal';
@@ -13,6 +14,8 @@ const PAGE_SIZE = 20;
 export default function LogsScreen({ repo: injectedRepo }: Props) {
   const repo = useMemo<SessionRepository>(() => injectedRepo ?? new SqliteSessionRepository(), [injectedRepo]);
   const mountedRef = useRef(true);
+  const hasFetchedRef = useRef(false);
+  const isFocused = useIsFocused();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [data, setData] = useState<SessionRecord[]>([]);
@@ -26,6 +29,14 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
 
   useEffect(() => {
     mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     (async () => {
       setLoading(true);
       setLoadingMore(false);
@@ -38,10 +49,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
       setHasNext(page.hasNext);
       setLoading(false);
     })();
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [repo]);
+  }, [isFocused, repo]);
 
   const loadMore = useCallback(async () => {
     if (loading || loadingMore || !hasNext) return;

@@ -3,6 +3,16 @@ import { act, render, waitFor, fireEvent } from '@testing-library/react-native';
 import LogsScreen from '../logs';
 import { SessionRecord, SessionRepository } from '../../src/session/types';
 
+let mockIsFocused = true;
+
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useIsFocused: () => mockIsFocused,
+  };
+});
+
 const records: SessionRecord[] = [
   {
     id: '2',
@@ -48,6 +58,10 @@ const createRepo = (data: SessionRecord[]): SessionRepository => ({
 });
 
 describe('LogsScreen', () => {
+  beforeEach(() => {
+    mockIsFocused = true;
+  });
+
   it('最新順で履歴を表示し、ガイド種別や心拍を含めて表示する', async () => {
     const repo = createRepo(records);
     const { getByText, queryAllByText } = render(<LogsScreen repo={repo} />);
@@ -177,5 +191,33 @@ describe('LogsScreen', () => {
       expect(getByText(/2025\/12\/16/)).toBeTruthy();
     });
     expect(pagedRepo.listPage).toHaveBeenCalledTimes(2);
+  });
+
+  it('初回フォーカス時のみ履歴を取得し、再表示で再取得しない', async () => {
+    const listPage = jest.fn(async () => ({
+      records,
+      nextCursor: null,
+      hasNext: false,
+    }));
+    const repo: SessionRepository = {
+      ...createRepo(records),
+      listPage,
+    };
+
+    const { rerender } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(listPage).toHaveBeenCalledTimes(1);
+    });
+
+    mockIsFocused = false;
+    rerender(<LogsScreen repo={repo} />);
+
+    mockIsFocused = true;
+    rerender(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(listPage).toHaveBeenCalledTimes(1);
+    });
   });
 });
