@@ -220,4 +220,67 @@ describe('LogsScreen', () => {
       expect(listPage).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('プル更新で最新1ページを取得し、既存一覧に先頭追加する', async () => {
+    const newest = records[0];
+    const middle = records[1];
+    const oldest = {
+      ...records[1],
+      id: '0',
+      recordedAt: '2025-12-15T10:00:00.000Z',
+    };
+    const listPage = jest.fn(async ({ cursor }) => {
+      if (!cursor) {
+        if (listPage.mock.calls.length === 1) {
+          return {
+            records: [middle, oldest],
+            nextCursor: { recordedAt: oldest.recordedAt, id: oldest.id },
+            hasNext: true,
+          };
+        }
+        return {
+          records: [newest, middle],
+          nextCursor: { recordedAt: middle.recordedAt, id: middle.id },
+          hasNext: true,
+        };
+      }
+      return {
+        records: [],
+        nextCursor: null,
+        hasNext: false,
+      };
+    });
+    const repo: SessionRepository = {
+      ...createRepo([middle, oldest]),
+      listPage,
+    };
+
+    const { getByTestId, getByText } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText(/2025\/12\/16/)).toBeTruthy();
+    });
+
+    const list = getByTestId('logs-list');
+    await act(async () => {
+      await list.props.onRefresh?.();
+    });
+
+    await waitFor(() => {
+      expect(getByText(/2025\/12\/17/)).toBeTruthy();
+      expect(getByText(/2025\/12\/15/)).toBeTruthy();
+    });
+
+    await act(async () => {
+      list.props.onEndReached?.();
+    });
+
+    await waitFor(() => {
+      expect(listPage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cursor: { recordedAt: oldest.recordedAt, id: oldest.id },
+        })
+      );
+    });
+  });
 });

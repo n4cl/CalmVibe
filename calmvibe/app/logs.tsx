@@ -18,6 +18,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const isFocused = useIsFocused();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<SessionRecord[]>([]);
   const [selected, setSelected] = useState<SessionRecord | null>(null);
   const [cursor, setCursor] = useState<SessionListCursor | null>(null);
@@ -61,6 +62,15 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setHasNext(page.hasNext);
     setLoadingMore(false);
   }, [cursor, hasNext, loading, loadingMore, repo]);
+
+  const refreshLatest = useCallback(async () => {
+    if (loading || refreshing) return;
+    setRefreshing(true);
+    const page = await repo.listPage({ limit: PAGE_SIZE, cursor: null });
+    if (!mountedRef.current) return;
+    setData((prev) => mergeLatestRecords(prev, page.records));
+    setRefreshing(false);
+  }, [loading, refreshing, repo]);
 
   const openEdit = (record: SessionRecord) => {
     setEditSource(record);
@@ -130,6 +140,8 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
         contentContainerStyle={{ paddingBottom: 24 }}
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
+        refreshing={refreshing}
+        onRefresh={refreshLatest}
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.footer}>
@@ -233,6 +245,22 @@ const mergeRecords = (prev: SessionRecord[], next: SessionRecord[]) => {
     }
   });
   return Array.from(map.values());
+};
+
+const mergeLatestRecords = (prev: SessionRecord[], latest: SessionRecord[]) => {
+  if (latest.length === 0) return prev;
+  const seen = new Set<string>();
+  const merged: SessionRecord[] = [];
+  latest.forEach((record) => {
+    merged.push(record);
+    seen.add(record.id);
+  });
+  prev.forEach((record) => {
+    if (!seen.has(record.id)) {
+      merged.push(record);
+    }
+  });
+  return merged;
 };
 
 const buildUpdate = (
