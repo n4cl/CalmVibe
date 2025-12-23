@@ -279,7 +279,7 @@ describe('LogsScreen', () => {
       listPage,
     };
 
-    const { getByTestId, getByText } = render(<LogsScreen repo={repo} />);
+    const { getByTestId, getByText, queryAllByLabelText } = render(<LogsScreen repo={repo} />);
 
     await waitFor(() => {
       expect(getByText(/2025\/12\/16/)).toBeTruthy();
@@ -294,6 +294,7 @@ describe('LogsScreen', () => {
       expect(getByText(/2025\/12\/17/)).toBeTruthy();
       expect(getByText(/2025\/12\/15/)).toBeTruthy();
     });
+    expect(queryAllByLabelText('log-item-1').length).toBe(1);
 
     await act(async () => {
       list.props.onEndReached?.();
