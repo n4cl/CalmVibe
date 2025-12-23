@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. APKビルド設定を整備
-- [ ] 1.1 (P) EAS BuildのAPKプロファイルを追加
+- [x] 1.1 (P) EAS BuildのAPKプロファイルを追加
   - 個人配布向けのビルドプロファイルを追加し、APK生成を有効化する
   - ビルド失敗時にログから原因が追跡できる状態にする
   - _Requirements: 1.1, 1.3_
