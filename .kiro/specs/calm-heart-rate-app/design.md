@@ -282,7 +282,7 @@ interface SessionRepository {
 - **Notes**: recordedAt DESC + id DESCインデックスで安定ソート。cursorは(recordedAt,id)で保持。breathConfigはJSON文字列で永続化。
 
 ### Tab/Logs UI Components (State)
-- **LogsScreen**: 初回は `SessionRepository.listPage` で最新分を取得し、recordedAt 降順で表示（UI側で追加ソートはしない）。`onEndReached` で追加ページを取得し、既存リストに追記する。タップで詳細へ（既存ログUIを流用/拡張）。
+- **LogsScreen**: 初回は「表示されたタイミング（初回フォーカス時）」に `SessionRepository.listPage` から最新分を取得し、recordedAt 降順で表示（UI側で追加ソートはしない）。タブ再表示時は自動で再取得せず、表示内容を維持する。`onEndReached` で追加ページを取得し、既存リストに追記する。Pull-to-Refresh を実装し、更新時は最新1ページ分を再取得して既存一覧に重複なく先頭追加する（ページングのcursorは維持）。空表示時でも Pull-to-Refresh を実行できるようにする。タップで詳細へ（既存ログUIを流用/拡張）。
 - **State保持**: タブ切替時に再マウントで状態が失われないよう、tabs 配下コンポーネントのアンマウントを避けるか、VM/Storeに集約。
 
 ## Data Models

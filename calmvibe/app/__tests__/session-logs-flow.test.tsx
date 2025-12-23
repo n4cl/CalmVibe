@@ -8,6 +8,16 @@ import { HapticsAdapter } from '../../src/guidance/types';
 import { SettingsRepository, SettingsValues, defaultSettings } from '../../src/settings/types';
 import { SqliteSessionRepository } from '../../src/session/sqliteRepository.web';
 
+let mockIsFocused = true;
+
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useIsFocused: () => mockIsFocused,
+  };
+});
+
 const createSettingsRepo = () => {
   let store: SettingsValues = defaultSettings;
   const save = jest.fn(async (values: SettingsValues) => {
@@ -21,6 +31,10 @@ const createSettingsRepo = () => {
 };
 
 describe('Session → Logs integration (web haptics fallback)', () => {
+  beforeEach(() => {
+    mockIsFocused = true;
+  });
+
   it('設定編集→開始/停止→記録→履歴表示まで通しで動作する', async () => {
     const { repo: settingsRepo, save } = createSettingsRepo();
     const sessionRepo = new SqliteSessionRepository();

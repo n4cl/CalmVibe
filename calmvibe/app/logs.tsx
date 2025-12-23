@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { RecordDraft, SessionListCursor, SessionRecord, SessionRecordUpdate, SessionRepository } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 import RecordModal from '../components/record-modal';
@@ -13,8 +14,11 @@ const PAGE_SIZE = 20;
 export default function LogsScreen({ repo: injectedRepo }: Props) {
   const repo = useMemo<SessionRepository>(() => injectedRepo ?? new SqliteSessionRepository(), [injectedRepo]);
   const mountedRef = useRef(true);
+  const hasFetchedRef = useRef(false);
+  const isFocused = useIsFocused();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<SessionRecord[]>([]);
   const [selected, setSelected] = useState<SessionRecord | null>(null);
   const [cursor, setCursor] = useState<SessionListCursor | null>(null);
@@ -26,6 +30,14 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
 
   useEffect(() => {
     mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     (async () => {
       setLoading(true);
       setLoadingMore(false);
@@ -38,10 +50,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
       setHasNext(page.hasNext);
       setLoading(false);
     })();
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [repo]);
+  }, [isFocused, repo]);
 
   const loadMore = useCallback(async () => {
     if (loading || loadingMore || !hasNext) return;
@@ -53,6 +62,15 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setHasNext(page.hasNext);
     setLoadingMore(false);
   }, [cursor, hasNext, loading, loadingMore, repo]);
+
+  const refreshLatest = useCallback(async () => {
+    if (loading || refreshing) return;
+    setRefreshing(true);
+    const page = await repo.listPage({ limit: PAGE_SIZE, cursor: null });
+    if (!mountedRef.current) return;
+    setData((prev) => mergeLatestRecords(prev, page.records));
+    setRefreshing(false);
+  }, [loading, refreshing, repo]);
 
   const openEdit = (record: SessionRecord) => {
     setEditSource(record);
@@ -102,6 +120,14 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
       <View style={[styles.container, styles.center]}>
         <Text style={styles.title}>履歴</Text>
         <Text style={styles.body}>履歴がありません</Text>
+        <FlatList
+          testID="logs-list"
+          data={[]}
+          renderItem={null as never}
+          refreshing={refreshing}
+          onRefresh={refreshLatest}
+          contentContainerStyle={{ flexGrow: 1 }}
+        />
       </View>
     );
   }
@@ -122,6 +148,8 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
         contentContainerStyle={{ paddingBottom: 24 }}
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
+        refreshing={refreshing}
+        onRefresh={refreshLatest}
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.footer}>
@@ -225,6 +253,22 @@ const mergeRecords = (prev: SessionRecord[], next: SessionRecord[]) => {
     }
   });
   return Array.from(map.values());
+};
+
+const mergeLatestRecords = (prev: SessionRecord[], latest: SessionRecord[]) => {
+  if (latest.length === 0) return prev;
+  const seen = new Set<string>();
+  const merged: SessionRecord[] = [];
+  latest.forEach((record) => {
+    merged.push(record);
+    seen.add(record.id);
+  });
+  prev.forEach((record) => {
+    if (!seen.has(record.id)) {
+      merged.push(record);
+    }
+  });
+  return merged;
 };
 
 const buildUpdate = (
