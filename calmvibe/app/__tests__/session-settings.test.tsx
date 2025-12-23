@@ -37,9 +37,9 @@ describe('SessionScreen settings (vibration only)', () => {
   it('デフォルト設定を表示する', async () => {
     const repo = createRepo();
     const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
-    const { findByLabelText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    const { findByTestId, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
-    await findByLabelText('心拍ガイド');
+    await findByTestId('mode-vibration');
     await findByText('BPM: 60');
     await findByText('時間: 180秒');
   });
