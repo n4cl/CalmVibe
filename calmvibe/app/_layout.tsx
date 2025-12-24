@@ -4,9 +4,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
+import { useDatabaseCompatibility } from '../src/bootstrap/useDatabaseCompatibility';
 
 export default function RootLayout() {
   useKeepAwake();
+  const { ready } = useDatabaseCompatibility();
+  if (!ready) {
+    return <GestureHandlerRootView style={styles.container} />;
+  }
   return (
     <GestureHandlerRootView style={styles.container}>
       <Tabs
