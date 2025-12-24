@@ -14,6 +14,7 @@ npm install
 - Web: `npm run web`
 - Lint: `npm run lint`
 - テスト: `npm test -- --runInBand`
+※ スタンドアロンAPKの導入手順は、ルートの `README.md` を参照してください。
 
 ## 技術スタック
 - Expo (React Native) / TypeScript
@@ -31,9 +32,3 @@ npm install
 - 心拍ガイド: 実行中にBPM変更を即時反映（GuidanceEngine.updateVibrationBpm）
 - 呼吸ガイド: 最小スケールから吸→最大、吐→最小のアニメ。同フェーズ開始で単発振動。
 - 設定は SQLite に保存。Web/テストはメモリ実装。
-
-## 未完タスクの主なもの
-- 5.x 履歴一覧・詳細
-- 6.x バリデーション／フォールバック
-- 7.x テスト拡充
-- 8.2-8.4 ナビ初期タブ・最新順・状態保持
