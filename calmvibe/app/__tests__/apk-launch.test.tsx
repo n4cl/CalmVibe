@@ -3,16 +3,17 @@ import { View } from 'react-native';
 import { render } from '@testing-library/react-native';
 import RootLayout from '../_layout';
 
-const screens: string[] = [];
+const mockScreens: string[] = [];
 
 jest.mock('../../src/bootstrap/useDatabaseCompatibility', () => ({
   useDatabaseCompatibility: () => ({ ready: true }),
 }));
 
 jest.mock('expo-router', () => {
+  const { View } = jest.requireActual('react-native');
   const Tabs = ({ children }: { children?: React.ReactNode }) => <View>{children}</View>;
   const TabsScreen = ({ name }: { name: string }) => {
-    screens.push(name);
+    mockScreens.push(name);
     return null;
   };
   TabsScreen.displayName = 'TabsScreen';
@@ -26,6 +27,7 @@ jest.mock('expo-keep-awake', () => ({
 }));
 
 jest.mock('react-native-gesture-handler', () => {
+  const { View } = jest.requireActual('react-native');
   const GestureHandlerRootView = ({ children, ...props }: { children?: React.ReactNode }) => (
     <View {...props}>{children}</View>
   );
@@ -39,11 +41,11 @@ jest.mock('@expo/vector-icons', () => ({
 
 describe('APK起動時のタブ定義', () => {
   beforeEach(() => {
-    screens.length = 0;
+    mockScreens.length = 0;
   });
 
   test('セッションと履歴のタブが定義されている', () => {
     render(<RootLayout />);
-    expect(screens).toEqual(expect.arrayContaining(['session', 'logs']));
+    expect(mockScreens).toEqual(expect.arrayContaining(['session', 'logs']));
   });
 });
