@@ -30,6 +30,9 @@ jobs:
       - name: Test
         run: npm test -- --runInBand
         working-directory: calmvibe
+      - name: Web Build
+        run: npx expo export -p web
+        working-directory: calmvibe
       - name: Build
         run: npm run build --if-present
         working-directory: calmvibe
