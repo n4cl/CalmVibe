@@ -15,7 +15,7 @@
   - アプリ起動時に互換性チェックを一度だけ実行する導線を確定する
   - Repository生成前に互換性チェックを通すことを保証する
   - _Requirements: 2.4_
-- [ ] 2.2 `PRAGMA user_version` と `dbSchemaVersion` の比較ロジックを実装
+- [x] 2.2 `PRAGMA user_version` と `dbSchemaVersion` の比較ロジックを実装
   - `PRAGMA user_version` を読み取り、期待バージョンと不一致なら初期化する
   - 初期化後に `PRAGMA user_version` を更新して再利用可能にする
   - _Requirements: 2.4_
