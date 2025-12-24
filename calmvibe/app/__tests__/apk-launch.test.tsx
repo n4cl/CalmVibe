@@ -1,5 +1,4 @@
 import React from 'react';
-import { View } from 'react-native';
 import { render } from '@testing-library/react-native';
 import RootLayout from '../_layout';
 
