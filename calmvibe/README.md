@@ -14,6 +14,7 @@ npm install
 - Web: `npm run web`
 - Lint: `npm run lint`
 - テスト: `npm test -- --runInBand`
+- Webビルド確認: `npx expo export -p web`
 ※ スタンドアロンAPKの導入手順は、ルートの `README.md` を参照してください。
 
 ## 技術スタック
