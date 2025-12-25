@@ -12,10 +12,10 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   private migrate() {
-    const columns = this.db.getAllSync(`PRAGMA table_info(session_records);`) as Array<{
+    const columns = this.db.getAllSync(`PRAGMA table_info(session_records);`) as {
       name: string;
       notnull: number;
-    }>;
+    }[];
     if (columns.length === 0) {
       this.createTable();
       return;

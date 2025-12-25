@@ -3,6 +3,16 @@ import { act, render, waitFor, fireEvent } from '@testing-library/react-native';
 import LogsScreen from '../logs';
 import { SessionRecord, SessionRepository } from '../../src/session/types';
 
+let mockIsFocused = true;
+
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useIsFocused: () => mockIsFocused,
+  };
+});
+
 const records: SessionRecord[] = [
   {
     id: '2',
@@ -48,6 +58,10 @@ const createRepo = (data: SessionRecord[]): SessionRepository => ({
 });
 
 describe('LogsScreen', () => {
+  beforeEach(() => {
+    mockIsFocused = true;
+  });
+
   it('最新順で履歴を表示し、ガイド種別や心拍を含めて表示する', async () => {
     const repo = createRepo(records);
     const { getByText, queryAllByText } = render(<LogsScreen repo={repo} />);
@@ -132,6 +146,30 @@ describe('LogsScreen', () => {
     });
   });
 
+  it('履歴が空でもプル更新を実行できる', async () => {
+    const listPage = jest.fn(async () => ({
+      records: [],
+      nextCursor: null,
+      hasNext: false,
+    }));
+    const repo: SessionRepository = {
+      ...createRepo([]),
+      listPage,
+    };
+    const { getByTestId, getByText } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴がありません')).toBeTruthy();
+    });
+
+    const list = getByTestId('logs-list');
+    await act(async () => {
+      await list.props.onRefresh?.();
+    });
+
+    expect(listPage).toHaveBeenCalledTimes(2);
+  });
+
   it('末尾到達で追加ロードし、履歴を追記する', async () => {
     const pagedRepo: SessionRepository = {
       async save() {
@@ -177,5 +215,97 @@ describe('LogsScreen', () => {
       expect(getByText(/2025\/12\/16/)).toBeTruthy();
     });
     expect(pagedRepo.listPage).toHaveBeenCalledTimes(2);
+  });
+
+  it('初回フォーカス時のみ履歴を取得し、再表示で再取得しない', async () => {
+    const listPage = jest.fn(async () => ({
+      records,
+      nextCursor: null,
+      hasNext: false,
+    }));
+    const repo: SessionRepository = {
+      ...createRepo(records),
+      listPage,
+    };
+
+    const { rerender } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(listPage).toHaveBeenCalledTimes(1);
+    });
+
+    mockIsFocused = false;
+    rerender(<LogsScreen repo={repo} />);
+
+    mockIsFocused = true;
+    rerender(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(listPage).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('プル更新で最新1ページを取得し、既存一覧に先頭追加する', async () => {
+    const newest = records[0];
+    const middle = records[1];
+    const oldest = {
+      ...records[1],
+      id: '0',
+      recordedAt: '2025-12-15T10:00:00.000Z',
+    };
+    const listPage = jest.fn(async ({ cursor }) => {
+      if (!cursor) {
+        if (listPage.mock.calls.length === 1) {
+          return {
+            records: [middle, oldest],
+            nextCursor: { recordedAt: oldest.recordedAt, id: oldest.id },
+            hasNext: true,
+          };
+        }
+        return {
+          records: [newest, middle],
+          nextCursor: { recordedAt: middle.recordedAt, id: middle.id },
+          hasNext: true,
+        };
+      }
+      return {
+        records: [],
+        nextCursor: null,
+        hasNext: false,
+      };
+    });
+    const repo: SessionRepository = {
+      ...createRepo([middle, oldest]),
+      listPage,
+    };
+
+    const { getByTestId, getByText, queryAllByLabelText } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText(/2025\/12\/16/)).toBeTruthy();
+    });
+
+    const list = getByTestId('logs-list');
+    await act(async () => {
+      await list.props.onRefresh?.();
+    });
+
+    await waitFor(() => {
+      expect(getByText(/2025\/12\/17/)).toBeTruthy();
+      expect(getByText(/2025\/12\/15/)).toBeTruthy();
+    });
+    expect(queryAllByLabelText('log-item-1').length).toBe(1);
+
+    await act(async () => {
+      list.props.onEndReached?.();
+    });
+
+    await waitFor(() => {
+      expect(listPage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cursor: { recordedAt: oldest.recordedAt, id: oldest.id },
+        })
+      );
+    });
   });
 });

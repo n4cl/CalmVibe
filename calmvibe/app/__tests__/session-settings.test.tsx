@@ -121,7 +121,7 @@ describe('SessionScreen breath settings', () => {
   it('プリセットボタンで呼吸パターンが更新され保存できる', async () => {
     const repo = createRepo();
     const useCase = { start: jest.fn(), stop: jest.fn(), updateVibrationBpm: jest.fn() } as any;
-    const { getByText, getAllByText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
+    const { getByText, findByText } = render(<SessionScreen settingsRepo={repo} useCase={useCase} />);
 
     await findByText('呼吸ガイド');
     fireEvent.press(getByText('呼吸ガイド'));

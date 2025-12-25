@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { VisualGuide } from './session/_visualGuide';
+import { VisualGuide } from '../components/visual-guide';
 import { SettingsRepository, BreathPattern } from '../src/settings/types';
 import { SessionUseCase } from '../src/session/useCase';
 import RecordModal from '../components/record-modal';
