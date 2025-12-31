@@ -116,7 +116,7 @@
   - 確認後にdeleteManyを実行し、成功時は一覧から即時除外する
   - 失敗時はエラーを表示して再試行を促す
   - _Requirements: 4.12,4.13_
-- [ ] 5.14 deleteManyの実装テストを追加する
+- [x] 5.14 deleteManyの実装テストを追加する
   - SessionRepositoryのdeleteMany（SQLite/Memory）の正常系/空配列/存在しないIDを確認する
   - _Requirements: 4.12,4.13_
 - [ ] 5.15 一括削除のUIテストを追加する
