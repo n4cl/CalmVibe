@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { act, render, waitFor, fireEvent } from '@testing-library/react-native';
 import LogsScreen from '../logs';
 import { SessionRecord, SessionRepository } from '../../src/session/types';
@@ -130,6 +131,71 @@ describe('LogsScreen', () => {
     fireEvent.press(getByLabelText('log-item-2'));
     const modal = await findByTestId('log-detail-modal');
     expect(modal).toBeTruthy();
+  });
+
+  it('確認後に選択した履歴を削除し、一覧から除外する', async () => {
+    const deleteMany = jest.fn(async () => undefined);
+    const repo: SessionRepository = {
+      ...createRepo(records),
+      deleteMany,
+    };
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
+      const destructive = buttons?.find((button) => button.style === 'destructive' || button.text === '削除');
+      destructive?.onPress?.();
+    });
+    const { getByLabelText, getByText, queryByLabelText } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴')).toBeTruthy();
+    });
+
+    fireEvent.press(getByLabelText('logs-select-toggle'));
+    fireEvent.press(getByLabelText('log-select-2'));
+    fireEvent.press(getByLabelText('logs-delete'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      '選択した履歴を削除しますか？',
+      expect.stringContaining('1件'),
+      expect.any(Array)
+    );
+
+    await waitFor(() => {
+      expect(deleteMany).toHaveBeenCalledWith(['2']);
+    });
+    await waitFor(() => {
+      expect(queryByLabelText('log-item-2')).toBeNull();
+    });
+    alertSpy.mockRestore();
+  });
+
+  it('削除に失敗した場合はエラーを表示する', async () => {
+    const deleteMany = jest.fn(async () => {
+      throw new Error('fail');
+    });
+    const repo: SessionRepository = {
+      ...createRepo(records),
+      deleteMany,
+    };
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
+      if (title === '選択した履歴を削除しますか？') {
+        const destructive = buttons?.find((button) => button.style === 'destructive' || button.text === '削除');
+        destructive?.onPress?.();
+      }
+    });
+    const { getByLabelText, getByText } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴')).toBeTruthy();
+    });
+
+    fireEvent.press(getByLabelText('logs-select-toggle'));
+    fireEvent.press(getByLabelText('log-select-2'));
+    fireEvent.press(getByLabelText('logs-delete'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('削除に失敗しました', 'もう一度お試しください');
+    });
+    alertSpy.mockRestore();
   });
 
   it('履歴詳細から編集モーダルを開き、既存値を初期表示する', async () => {

@@ -131,6 +131,36 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setEditSource(null);
   };
 
+  const requestDelete = () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    Alert.alert('選択した履歴を削除しますか？', `${count}件を削除しますか？`, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () => {
+          void confirmDelete(Array.from(selectedIds));
+        },
+      },
+    ]);
+  };
+
+  const confirmDelete = async (ids: string[]) => {
+    try {
+      await repo.deleteMany(ids);
+    } catch {
+      Alert.alert('削除に失敗しました', 'もう一度お試しください');
+      return;
+    }
+    if (!mountedRef.current) return;
+    const idSet = new Set(ids);
+    setData((prev) => prev.filter((record) => !idSet.has(record.id)));
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+    setSelected(null);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -145,9 +175,20 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
       <View style={[styles.container, styles.center]}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>履歴</Text>
-          <Pressable accessibilityLabel="logs-select-toggle" onPress={selectionMode ? exitSelectionMode : enterSelectionMode}>
-            <Text style={styles.selectToggleLabel}>{selectionMode ? 'キャンセル' : '選択'}</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable accessibilityLabel="logs-select-toggle" onPress={selectionMode ? exitSelectionMode : enterSelectionMode}>
+              <Text style={styles.selectToggleLabel}>{selectionMode ? 'キャンセル' : '選択'}</Text>
+            </Pressable>
+            {selectionMode && (
+              <Pressable
+                accessibilityLabel="logs-delete"
+                onPress={requestDelete}
+                disabled={selectedIds.size === 0}
+              >
+                <Text style={[styles.deleteLabel, selectedIds.size === 0 && styles.deleteLabelDisabled]}>削除</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
         <Text style={styles.body}>履歴がありません</Text>
         <FlatList
@@ -166,9 +207,20 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>履歴</Text>
-        <Pressable accessibilityLabel="logs-select-toggle" onPress={selectionMode ? exitSelectionMode : enterSelectionMode}>
-          <Text style={styles.selectToggleLabel}>{selectionMode ? 'キャンセル' : '選択'}</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable accessibilityLabel="logs-select-toggle" onPress={selectionMode ? exitSelectionMode : enterSelectionMode}>
+            <Text style={styles.selectToggleLabel}>{selectionMode ? 'キャンセル' : '選択'}</Text>
+          </Pressable>
+          {selectionMode && (
+            <Pressable
+              accessibilityLabel="logs-delete"
+              onPress={requestDelete}
+              disabled={selectedIds.size === 0}
+            >
+              <Text style={[styles.deleteLabel, selectedIds.size === 0 && styles.deleteLabelDisabled]}>削除</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
       <FlatList
         testID="logs-list"
@@ -369,9 +421,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24 },
   center: { justifyContent: 'center', alignItems: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontSize: 22, fontWeight: '700' },
   body: { fontSize: 16, color: '#555' },
   selectToggleLabel: { fontSize: 14, fontWeight: '700', color: '#2563eb', paddingVertical: 6, paddingHorizontal: 8 },
+  deleteLabel: { fontSize: 14, fontWeight: '700', color: '#dc2626', paddingVertical: 6, paddingHorizontal: 8 },
+  deleteLabelDisabled: { color: '#fca5a5' },
   separator: { height: 12 },
   card: {
     backgroundColor: '#f5f7fb',
