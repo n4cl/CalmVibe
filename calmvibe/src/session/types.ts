@@ -47,4 +47,5 @@ export interface SessionRepository {
   list(): Promise<SessionRecord[]>;
   listPage(input: { limit: number; cursor?: SessionListCursor | null }): Promise<SessionPageResult>;
   get(id: string): Promise<SessionRecord | null>;
+  deleteMany(ids: string[]): Promise<void>;
 }

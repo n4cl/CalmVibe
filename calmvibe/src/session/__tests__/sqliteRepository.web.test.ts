@@ -39,3 +39,44 @@ describe('SqliteSessionRepository update', () => {
     expect(listAfter[0].improvement).toBe(4);
   });
 });
+
+describe('SqliteSessionRepository deleteMany', () => {
+  it('指定したIDを削除できる', async () => {
+    const repo = new SqliteSessionRepository();
+    await repo.save({ id: '0', recordedAt: '2025-12-17T12:00:00.000Z', guideType: 'VIBRATION' });
+    await repo.save({ id: '0', recordedAt: '2025-12-16T12:00:00.000Z', guideType: 'BREATH' });
+    await repo.save({ id: '0', recordedAt: '2025-12-15T12:00:00.000Z', guideType: 'VIBRATION' });
+    const before = await repo.list();
+    const targetIds = [before[0].id, before[2].id];
+
+    await repo.deleteMany(targetIds);
+
+    const after = await repo.list();
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(before[1].id);
+  });
+
+  it('空配列はno-opになる', async () => {
+    const repo = new SqliteSessionRepository();
+    await repo.save({ id: '0', recordedAt: '2025-12-17T12:00:00.000Z', guideType: 'VIBRATION' });
+    const before = await repo.list();
+
+    await repo.deleteMany([]);
+
+    const after = await repo.list();
+    expect(after).toHaveLength(before.length);
+    expect(after[0].id).toBe(before[0].id);
+  });
+
+  it('存在しないIDは無視される', async () => {
+    const repo = new SqliteSessionRepository();
+    await repo.save({ id: '0', recordedAt: '2025-12-17T12:00:00.000Z', guideType: 'VIBRATION' });
+    const before = await repo.list();
+
+    await repo.deleteMany(['999']);
+
+    const after = await repo.list();
+    expect(after).toHaveLength(before.length);
+    expect(after[0].id).toBe(before[0].id);
+  });
+});
