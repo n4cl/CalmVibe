@@ -119,7 +119,7 @@
 - [x] 5.14 deleteManyの実装テストを追加する
   - SessionRepositoryのdeleteMany（SQLite/Memory）の正常系/空配列/存在しないIDを確認する
   - _Requirements: 4.12,4.13_
-- [ ] 5.15 一括削除のUIテストを追加する
+- [x] 5.15 一括削除のUIテストを追加する
   - 選択モードの開始/解除、複数選択、削除後の一覧反映を確認する
   - _Requirements: 4.10,4.11,4.12,4.13,4.14_
 
