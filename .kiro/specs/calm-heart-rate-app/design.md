@@ -29,6 +29,7 @@
 ### Architecture Pattern & Boundary Map
 - パターン: MVVM + UseCase + Repository（継続）。UIはタブ構成でSessionScreen/LogsScreenを分離。ViewModelはタブ間で状態を持続。
 - 境界: プレゼンテーション(UI), ドメイン(UseCase, GuidanceEngine), データ(Repositories), プラットフォーム(HapticsAdapter)。
+- 例外: 現状の履歴画面は Repository を直接呼び出す構成を維持する（最小改修方針）。アーキテクチャ統一は別Issue（#26）で対応する。
 
 ```mermaid
 graph TB
