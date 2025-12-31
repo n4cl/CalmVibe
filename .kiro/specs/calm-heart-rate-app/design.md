@@ -12,6 +12,7 @@
 - セッションタブでモード選択→開始/停止がワンタップ圏内で完結する。
 - 呼吸/心拍ガイドが視覚ガイドと同期し、BPM ±5%目標で実行される。
 - 履歴タブで最新順の記録に即アクセスし、データはローカルに保持される。
+- 履歴タブで複数選択による一括削除ができる。
 
 ### Non-Goals
 - 自動心拍計測や外部デバイス連携。
@@ -126,6 +127,24 @@ sequenceDiagram
   end
 ```
 
+### 履歴の一括削除
+```mermaid
+sequenceDiagram
+  participant User
+  participant Logs as LogsScreen
+  participant Repo as SessionRepo
+
+  User->>Logs: 選択モード開始
+  Logs-->>User: チェックボックス表示/件数表示
+  User->>Logs: 複数選択
+  User->>Logs: 削除実行
+  Logs->>User: 確認ダイアログ
+  User->>Logs: 確認
+  Logs->>Repo: deleteMany(ids)
+  Repo-->>Logs: ok
+  Logs-->>User: 一覧から削除反映
+```
+
 ## Requirements Traceability
 
 | Requirement | Summary | Components | Interfaces | Flows |
@@ -145,6 +164,7 @@ sequenceDiagram
 | 3.3 | モード独立開始 | SessionUseCase | start | 開始 |
 | 4.1-4.5 | 記録と履歴表示 | SessionUseCase, SessionRepository, LogsScreen | complete/save/list | 完了/閲覧 |
 | 4.6 | 履歴の追加読み込み | SessionRepository, LogsScreen | listPage | 閲覧 |
+| 4.10-4.14 | 履歴の一括削除 | LogsScreen, SessionRepository | deleteMany | 削除 |
 | 5.1 | タブを2つに限定 | TabLayout, SessionTab, LogsTab | tabs config | 起動 |
 | 5.2 | デフォルトでセッション表示 | TabLayout | tabs initial | 起動 |
 | 5.3 | 履歴タブで一覧即表示 | TabLayout, LogsScreen | tabs route | ナビ |
@@ -157,12 +177,12 @@ sequenceDiagram
 |-----------|--------------|--------|--------------|----------------------|-----------|
 | TabLayout | UI/Nav | 2タブ構成を定義（Session/Logs） | 5.1-5.3 | SessionScreen(P0), LogsScreen(P0) | State |
 | SessionScreen | UI | 設定編集と開始/停止操作 | 1.*,2.*,3.*,5.4 | SessionViewModel(P0) | State |
-| LogsScreen | UI | 履歴一覧/詳細表示 | 4.*,5.3 | SessionRepository(P0) | State |
+| LogsScreen | UI | 履歴一覧/詳細表示/一括削除 | 4.*,5.3 | SessionRepository(P0) | State |
 | SessionViewModel | UI/Domain Facade | 設定CRUD・開始/停止中継・状態保持 | 1.*,3.*,4.*,5.4 | SettingsRepository(P0), SessionUseCase(P0) | Service, State |
 | GuidanceEngine | Domain | 心拍/呼吸ガイド実行とイベント通知 | 1.3,2.1-2.4,3.2 | HapticsAdapter(P0) | Service |
 | SessionUseCase | Domain | 開始/停止/記録保存のオーケストレーション | 1.3,2.1-2.3,3.2,3.3,4.*,5.4 | GuidanceEngine(P0), SettingsRepository(P0), SessionRepository(P0) | Service |
 | SettingsRepository | Data | 設定の保存/取得 | 1.1-1.6,3.1 | SQLite/Memory(P0) | Service, State |
-| SessionRepository | Data | セッション記録保存/取得 | 4.*,5.3 | SQLite/Memory(P0) | Service, State |
+| SessionRepository | Data | セッション記録保存/取得/削除 | 4.*,5.3 | SQLite/Memory(P0) | Service, State |
 | HapticsAdapter | Platform | 振動実行/停止と結果返却 | 1.3,2.1,2.2,2.4 | expo-haptics(P0) | Service |
 | BreathVisualGuide | UI | フェーズに同期した視覚ガイド | 2.1,2.4 | SessionViewModel(P1) | State |
 
@@ -277,12 +297,16 @@ interface SessionRepository {
     hasNext: boolean;
   }>;
   get(id: string): Promise<SessionRecord | null>;
+  deleteMany(ids: string[]): Promise<Result>;
 }
 ```
-- **Notes**: recordedAt DESC + id DESCインデックスで安定ソート。cursorは(recordedAt,id)で保持。breathConfigはJSON文字列で永続化。
+- **Notes**: recordedAt DESC + id DESCインデックスで安定ソート。cursorは(recordedAt,id)で保持。breathConfigはJSON文字列で永続化。削除はトランザクションでまとめて実行し、存在しないIDは無視する。
 
 ### Tab/Logs UI Components (State)
 - **LogsScreen**: 初回は「表示されたタイミング（初回フォーカス時）」に `SessionRepository.listPage` から最新分を取得し、recordedAt 降順で表示（UI側で追加ソートはしない）。タブ再表示時は自動で再取得せず、表示内容を維持する。`onEndReached` で追加ページを取得し、既存リストに追記する。Pull-to-Refresh を実装し、更新時は最新1ページ分を再取得して既存一覧に重複なく先頭追加する（ページングのcursorは維持）。空表示時でも Pull-to-Refresh を実行できるようにする。タップで詳細へ（既存ログUIを流用/拡張）。
+  - 選択モード: 「選択」操作でチェックボックスを表示し、複数選択に対応する。選択件数を表示し、削除ボタンを有効化する。
+  - 削除導線: 削除前に確認ダイアログで件数を提示し、確認後に `SessionRepository.deleteMany` を実行して一覧から即時除外する。
+  - キャンセル: 選択解除またはキャンセルで通常表示に戻る。
 - **State保持**: タブ切替時に再マウントで状態が失われないよう、tabs 配下コンポーネントのアンマウントを避けるか、VM/Storeに集約。
 
 ## Data Models
@@ -302,8 +326,9 @@ interface SessionRepository {
 - システムエラー: Haptics permission/disabled は Resultで返し視覚のみ継続。DB失敗は1回リトライし失敗時に再試行案内。
 - ビジネスロジック: start中の重複startは {ok:false, error:'already_running'}。
 - 監視: ガイド開始/停止、保存失敗をログ出力。
+- 削除失敗: deleteMany 失敗時は一覧から除去せず、エラー表示して再試行を促す。
 
 ## Testing Strategy
-- Unit: GuidanceEngine（BPMドリフト補正、呼吸フェーズ進行、cycles∞/有限、停止）、HapticsAdapter入力検証、SettingsRepository境界値、SessionUseCase start/stop/complete、SessionViewModel状態保持（タブ切替シミュレーション）。
-- Integration/UI: セッションタブ初期表示→設定編集→開始/停止→記録保存、タブ切替で設定保持、履歴タブで一覧即表示、振動不可時に視覚のみ継続。
-- E2E: Android/Expo Go でセッション開始→停止→記録入力→履歴確認。Webで振動不可でも落ちないこと。
+- Unit: GuidanceEngine（BPMドリフト補正、呼吸フェーズ進行、cycles∞/有限、停止）、HapticsAdapter入力検証、SettingsRepository境界値、SessionUseCase start/stop/complete、SessionRepository deleteMany、SessionViewModel状態保持（タブ切替シミュレーション）。
+- Integration/UI: セッションタブ初期表示→設定編集→開始/停止→記録保存、タブ切替で設定保持、履歴タブで一覧即表示、複数選択→削除→一覧反映、振動不可時に視覚のみ継続。
+- E2E: Android/Expo Go でセッション開始→停止→記録入力→履歴確認。履歴の複数選択削除が成立すること。Webで振動不可でも落ちないこと。
