@@ -106,6 +106,32 @@ describe('LogsScreen', () => {
     expect(getByText(/ガイド: 心拍ガイド/)).toBeTruthy();
   });
 
+  it('選択モードではチェックバッジで選択を示し、詳細は開かない', async () => {
+    const repo = createRepo(records);
+    const { getByLabelText, getByText, findByTestId, queryByLabelText, queryByTestId, queryByText } = render(
+      <LogsScreen repo={repo} />
+    );
+
+    await waitFor(() => {
+      expect(getByText('履歴')).toBeTruthy();
+    });
+
+    fireEvent.press(getByLabelText('logs-select-toggle'));
+    expect(getByText('キャンセル')).toBeTruthy();
+    expect(queryByText(/選択中/)).toBeNull();
+
+    fireEvent.press(getByLabelText('log-select-2'));
+    expect(getByLabelText('log-check-2')).toBeTruthy();
+    expect(queryByTestId('log-detail-modal')).toBeNull();
+
+    fireEvent.press(getByLabelText('logs-select-toggle'));
+    expect(queryByLabelText('log-check-2')).toBeNull();
+
+    fireEvent.press(getByLabelText('log-item-2'));
+    const modal = await findByTestId('log-detail-modal');
+    expect(modal).toBeTruthy();
+  });
+
   it('履歴詳細から編集モーダルを開き、既存値を初期表示する', async () => {
     const update = jest.fn(async () => undefined);
     const repo = {
