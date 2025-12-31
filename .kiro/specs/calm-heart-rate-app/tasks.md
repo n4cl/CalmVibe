@@ -101,7 +101,7 @@
   - プル更新で重複排除しながら先頭追加されることを確認する
   - 空の履歴表示でも更新が動作することを確認する
   - _Requirements: 4.7,4.8,4.9_
-- [ ] 5.11 履歴の一括削除APIを追加する
+- [x] 5.11 履歴の一括削除APIを追加する
   - SessionRepositoryにdeleteMany(ids)を追加し、SQLite/Memory双方でトランザクション削除を実装する
   - idsが空のときはno-op、存在しないIDは無視する
   - _Requirements: 4.12,4.13_

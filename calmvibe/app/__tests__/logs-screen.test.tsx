@@ -55,6 +55,9 @@ const createRepo = (data: SessionRecord[]): SessionRepository => ({
   async get() {
     return null;
   },
+  async deleteMany() {
+    throw new Error('not used');
+  },
 });
 
 describe('LogsScreen', () => {
@@ -183,6 +186,9 @@ describe('LogsScreen', () => {
       },
       async get() {
         return null;
+      },
+      async deleteMany() {
+        throw new Error('not used');
       },
       listPage: jest.fn(async ({ cursor }) => {
         if (!cursor) {
