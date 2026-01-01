@@ -30,6 +30,7 @@ const createMocks = () => {
     list: jest.fn(),
     listPage: jest.fn(),
     get: jest.fn(),
+    deleteMany: jest.fn(),
   };
   return { guidance, settingsRepo, sessionRepo, startGuidance, stopGuidance };
 };
@@ -180,6 +181,7 @@ describe('SessionUseCase complete', () => {
       list: jest.fn(),
       listPage: jest.fn(),
       get: jest.fn(),
+      deleteMany: jest.fn(),
     };
     const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
 
@@ -197,6 +199,7 @@ describe('SessionUseCase complete', () => {
       list: jest.fn(),
       listPage: jest.fn(),
       get: jest.fn(),
+      deleteMany: jest.fn(),
     };
     const useCase = new SessionUseCase(guidance, settingsRepo, sessionRepo);
 

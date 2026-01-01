@@ -228,4 +228,19 @@ export class SqliteSessionRepository implements SessionRepository {
       breathConfig: row.breathConfig ? JSON.parse(row.breathConfig) : undefined,
     };
   }
+
+  async deleteMany(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const numericIds = ids.map((id) => Number(id)).filter((id) => Number.isFinite(id));
+    if (numericIds.length === 0) return;
+    const placeholders = numericIds.map(() => '?').join(',');
+    try {
+      this.db.execSync('BEGIN;');
+      this.db.runSync(`DELETE FROM session_records WHERE id IN (${placeholders})`, numericIds);
+      this.db.execSync('COMMIT;');
+    } catch (error) {
+      this.db.execSync('ROLLBACK;');
+      throw error;
+    }
+  }
 }

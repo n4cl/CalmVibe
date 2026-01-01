@@ -59,6 +59,12 @@ export class SqliteSessionRepository implements SessionRepository {
   async get(id: string): Promise<SessionRecord | null> {
     return this.store.find((r) => r.id === id) ?? null;
   }
+
+  async deleteMany(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const targetIds = new Set(ids);
+    this.store = this.store.filter((record) => !targetIds.has(record.id));
+  }
 }
 
 const compareRecordsDesc = (a: SessionRecord, b: SessionRecord) => {
