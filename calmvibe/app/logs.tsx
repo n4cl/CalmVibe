@@ -175,39 +175,6 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     );
   }
 
-  if (data.length === 0) {
-    return (
-      <View style={[...containerStyle, styles.center]}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>履歴</Text>
-          <View style={styles.headerActions}>
-            <Pressable accessibilityLabel="logs-select-toggle" onPress={selectionMode ? exitSelectionMode : enterSelectionMode}>
-              <Text style={styles.selectToggleLabel}>{selectionMode ? 'キャンセル' : '選択'}</Text>
-            </Pressable>
-            {selectionMode && (
-              <Pressable
-                accessibilityLabel="logs-delete"
-                onPress={requestDelete}
-                disabled={selectedIds.size === 0}
-              >
-                <Text style={[styles.deleteLabel, selectedIds.size === 0 && styles.deleteLabelDisabled]}>削除</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-        <Text style={styles.body}>履歴がありません</Text>
-        <FlatList
-          testID="logs-list"
-          data={[]}
-          renderItem={null as never}
-          refreshing={refreshing}
-          onRefresh={refreshLatest}
-          contentContainerStyle={{ flexGrow: 1 }}
-        />
-      </View>
-    );
-  }
-
   return (
     <View style={containerStyle}>
       <View style={styles.headerRow}>
@@ -231,6 +198,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
         testID="logs-list"
         data={data}
         keyExtractor={(item) => item.id}
+        style={styles.list}
         renderItem={({ item }) => (
           <Pressable
             accessibilityLabel={selectionMode ? `log-select-${item.id}` : `log-item-${item.id}`}
@@ -246,7 +214,12 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
           </Pressable>
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.body}>履歴がありません</Text>
+          </View>
+        }
+        contentContainerStyle={[styles.listContent, data.length === 0 && styles.listEmptyContent]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
         refreshing={refreshing}
@@ -433,6 +406,10 @@ const styles = StyleSheet.create({
   deleteLabel: { fontSize: 14, fontWeight: '700', color: '#dc2626', paddingVertical: 6, paddingHorizontal: 8 },
   deleteLabelDisabled: { color: '#fca5a5' },
   separator: { height: 12 },
+  list: { flex: 1, alignSelf: 'stretch' },
+  listContent: { paddingBottom: 24, flexGrow: 1 },
+  listEmptyContent: { justifyContent: 'center', alignItems: 'center' },
+  emptyState: { alignItems: 'center' },
   card: {
     backgroundColor: '#f5f7fb',
     borderRadius: 12,
