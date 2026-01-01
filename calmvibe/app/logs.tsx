@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordDraft, SessionListCursor, SessionRecord, SessionRecordUpdate, SessionRepository } from '../src/session/types';
 import { SqliteSessionRepository } from '../src/session/sqliteRepository';
 import RecordModal from '../components/record-modal';
@@ -10,12 +11,16 @@ type Props = {
 };
 
 const PAGE_SIZE = 20;
+const basePadding = 24;
 
 export default function LogsScreen({ repo: injectedRepo }: Props) {
   const repo = useMemo<SessionRepository>(() => injectedRepo ?? new SqliteSessionRepository(), [injectedRepo]);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
   const isFocused = useIsFocused();
+  // SafeAreaViewだとFlatListの余白が崩れやすいため、上部だけ手動で足す
+  const insets = useSafeAreaInsets();
+  const containerStyle = [styles.container, { paddingTop: basePadding + insets.top }];
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -163,7 +168,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[...containerStyle, styles.center]}>
         <ActivityIndicator />
         <Text style={styles.body}>読み込み中...</Text>
       </View>
@@ -172,7 +177,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
 
   if (data.length === 0) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[...containerStyle, styles.center]}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>履歴</Text>
           <View style={styles.headerActions}>
@@ -204,7 +209,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={containerStyle}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>履歴</Text>
         <View style={styles.headerActions}>
@@ -418,7 +423,7 @@ const retryOnce = async (fn: () => Promise<void>) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24 },
+  container: { flex: 1, padding: basePadding },
   center: { justifyContent: 'center', alignItems: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
