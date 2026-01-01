@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VisualGuide } from '../components/visual-guide';
 import { SettingsRepository, BreathPattern } from '../src/settings/types';
 import { SessionUseCase } from '../src/session/useCase';
@@ -17,6 +18,8 @@ const breathPresets: { label: string; pattern: BreathPattern }[] = [
   { label: '4-6-4 (5回)', pattern: { type: 'three-phase', inhaleSec: 4, holdSec: 6, exhaleSec: 4, cycles: 5 } },
 ];
 
+const basePadding = 20;
+
 export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, viewModel: injectedViewModel }: SessionScreenProps) {
   const viewModel = useMemo(() => {
     if (injectedViewModel) return injectedViewModel;
@@ -27,6 +30,9 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, 
   }, [injectedViewModel, injectedUseCase, settingsRepo]);
   const state = useSessionViewModel(viewModel);
   const repeatTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // SafeAreaViewだとScrollViewの余白が崩れやすいため、上部だけ手動で足す
+  const insets = useSafeAreaInsets();
+  const containerStyle = [styles.container, { paddingTop: basePadding + insets.top }];
 
   const stopRepeat = () => {
     if (repeatTimer.current) {
@@ -50,7 +56,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, 
 
   if (state.loading) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[...containerStyle, styles.center]}>
         <ActivityIndicator />
         <Text style={styles.body}>読み込み中...</Text>
       </View>
@@ -60,7 +66,7 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, 
   if (!state.values) return null;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={containerStyle}>
       <Text style={styles.title}>セッション開始</Text>
       <View style={styles.modeRow}>
         <Pressable
@@ -318,7 +324,7 @@ const useSessionViewModel = (viewModel: SessionViewModel) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 12 },
+  container: { padding: basePadding, gap: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   card: { backgroundColor: '#f4f6fb', borderRadius: 12, padding: 12, gap: 10 },

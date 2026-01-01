@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useDatabaseCompatibility } from '../src/bootstrap/useDatabaseCompatibility';
 
 export default function RootLayout() {
@@ -14,38 +15,40 @@ export default function RootLayout() {
   }
   return (
     <GestureHandlerRootView style={styles.container}>
-      <Tabs
-        initialRouteName="session"
-        detachInactiveScreens={false}
-        lazy={false}
-        screenOptions={{
-          headerShown: false,
-        }}>
-        <Tabs.Screen
-          name="index"
-          options={{
-            href: null, // ルートは /session へリダイレクトするだけでタブには出さない
-          }}
-        />
-        <Tabs.Screen
-          name="session"
-          options={{
-            title: 'セッション',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="pulse-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="logs"
-          options={{
-            title: '履歴',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="time-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      </Tabs>
+      <SafeAreaProvider>
+        <Tabs
+          initialRouteName="session"
+          detachInactiveScreens={false}
+          lazy={false}
+          screenOptions={{
+            headerShown: false,
+          }}>
+          <Tabs.Screen
+            name="index"
+            options={{
+              href: null, // ルートは /session へリダイレクトするだけでタブには出さない
+            }}
+          />
+          <Tabs.Screen
+            name="session"
+            options={{
+              title: 'セッション',
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="pulse-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="logs"
+            options={{
+              title: '履歴',
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="time-outline" size={size} color={color} />
+              ),
+            }}
+          />
+        </Tabs>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

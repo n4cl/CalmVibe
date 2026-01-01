@@ -193,6 +193,7 @@ sequenceDiagram
 - **Contracts**: State ☑
 - **Implementation Notes**
   - `app/(tabs)/_layout.tsx` で `Tabs.Screen` を `name="session"` と `name="logs"` の2つだけに設定し、`initialRouteName="session"` を明示。`detachInactiveScreens={false}` `lazy={false}` を指定してタブ切替時のアンマウントを避ける。
+  - `app/_layout.tsx` の最上位で `SafeAreaProvider` を適用し、各画面が safe area inset を参照できるようにする。
   - 既存の `index.tsx` / `explore.tsx` は削除し、新規に `app/(tabs)/session.tsx` で `SessionScreen` を、`app/(tabs)/logs.tsx` で `LogsScreen` をラップする薄いコンポーネントを配置する。
   - タブアイコン・ラベル: Session=「セッション」(heartbeat系アイコン)、Logs=「履歴」(list系アイコン)。アクセシビリティラベルを各タブに付与。
 
@@ -304,7 +305,9 @@ interface SessionRepository {
 - **Notes**: recordedAt DESC + id DESCインデックスで安定ソート。cursorは(recordedAt,id)で保持。breathConfigはJSON文字列で永続化。削除はトランザクションでまとめて実行し、存在しないIDは無視する。
 
 ### Tab/Logs UI Components (State)
+- **SessionScreen**: 上部がステータスバーに重ならないよう、`SafeAreaView`（`edges={['top']}`）または `useSafeAreaInsets` で `paddingTop` を付与する。タブ下部の safe area はタブバー側に委譲する。
 - **LogsScreen**: 初回は「表示されたタイミング（初回フォーカス時）」に `SessionRepository.listPage` から最新分を取得し、recordedAt 降順で表示（UI側で追加ソートはしない）。タブ再表示時は自動で再取得せず、表示内容を維持する。`onEndReached` で追加ページを取得し、既存リストに追記する。Pull-to-Refresh を実装し、更新時は最新1ページ分を再取得して既存一覧に重複なく先頭追加する（ページングのcursorは維持）。空表示時でも Pull-to-Refresh を実行できるようにする。タップで詳細へ（既存ログUIを流用/拡張）。
+  - Safe Area: セッション同様、上部は `SafeAreaView`/`useSafeAreaInsets` で余白を確保し、ステータスバーに重ならないようにする。
   - 選択モード: 「選択」操作で複数選択に対応する。カード左に常設の余白を設け、選択時は左中央にチェックバッジ（✓）を表示し、背景色で強調する。選択件数の表示は不要。
   - 削除導線: 削除前に確認ダイアログで件数を提示し、確認後に `SessionRepository.deleteMany` を実行して一覧から即時除外する。
   - キャンセル: 選択解除またはキャンセルで通常表示に戻る。
