@@ -1,4 +1,8 @@
-import { SqliteSessionRepository } from '../sqliteRepository.web';
+import { SqliteSessionRepository, resetSessionRepositoryStoreForTests } from '../sqliteRepository.web';
+
+beforeEach(() => {
+  resetSessionRepositoryStoreForTests();
+});
 
 describe('SqliteSessionRepository listPage', () => {
   it('limit件を返し、hasNextとnextCursorで続きが判定できる', async () => {

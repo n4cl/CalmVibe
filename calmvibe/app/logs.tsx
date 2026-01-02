@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordDraft, SessionListCursor, SessionRecord, SessionRecordUpdate, SessionRepository } from '../src/session/types';
@@ -17,7 +17,9 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const repo = useMemo<SessionRepository>(() => injectedRepo ?? new SqliteSessionRepository(), [injectedRepo]);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
+  const wasFocusedRef = useRef(false);
   const isFocused = useIsFocused();
+  const isWeb = Platform.OS === 'web';
   // SafeAreaViewだとFlatListの余白が崩れやすいため、上部だけ手動で足す
   const insets = useSafeAreaInsets();
   const containerStyle = [styles.container, { paddingTop: basePadding + insets.top }];
@@ -42,23 +44,6 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isFocused || hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-    (async () => {
-      setLoading(true);
-      setLoadingMore(false);
-      setCursor(null);
-      setHasNext(false);
-      const page = await repo.listPage({ limit: PAGE_SIZE, cursor: null });
-      if (!mountedRef.current) return;
-      setData(page.records);
-      setCursor(page.nextCursor ?? null);
-      setHasNext(page.hasNext);
-      setLoading(false);
-    })();
-  }, [isFocused, repo]);
-
   const loadMore = useCallback(async () => {
     if (loading || loadingMore || !hasNext) return;
     setLoadingMore(true);
@@ -70,6 +55,19 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setLoadingMore(false);
   }, [cursor, hasNext, loading, loadingMore, repo]);
 
+  const loadInitial = useCallback(async () => {
+    setLoading(true);
+    setLoadingMore(false);
+    setCursor(null);
+    setHasNext(false);
+    const page = await repo.listPage({ limit: PAGE_SIZE, cursor: null });
+    if (!mountedRef.current) return;
+    setData(page.records);
+    setCursor(page.nextCursor ?? null);
+    setHasNext(page.hasNext);
+    setLoading(false);
+  }, [repo]);
+
   const refreshLatest = useCallback(async () => {
     if (loading || refreshing) return;
     setRefreshing(true);
@@ -78,6 +76,23 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setData((prev) => mergeLatestRecords(prev, page.records));
     setRefreshing(false);
   }, [loading, refreshing, repo]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      wasFocusedRef.current = false;
+      return;
+    }
+    if (wasFocusedRef.current) return;
+    wasFocusedRef.current = true;
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      void loadInitial();
+      return;
+    }
+    if (isWeb) {
+      void refreshLatest();
+    }
+  }, [isFocused, isWeb, loadInitial, refreshLatest]);
 
   const openEdit = (record: SessionRecord) => {
     setEditSource(record);
