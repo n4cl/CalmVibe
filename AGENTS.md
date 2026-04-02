@@ -28,6 +28,7 @@ AI-DLC（AI Development Life Cycle）上で動く、Kiro 風 Spec Driven Develop
 ## 開発ガイドライン
 - 返答は日本語で生成してください。
 - プロジェクトファイルに書き出す Markdown（例：requirements.md, design.md, tasks.md, research.md, 検証レポート）は、各仕様で設定されたターゲット言語で必ず記述してください（`spec.json.language` を参照）。
+- PR を作成・更新する場合は `.github/PULL_REQUEST_TEMPLATE.md` を確認し、その見出し・記載方針に沿ってタイトルと本文を作成してください。
 
 ## 最小ワークフロー（Minimal Workflow）
 - Phase 0（任意）:
