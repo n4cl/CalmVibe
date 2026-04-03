@@ -21,6 +21,11 @@
 ## 動作確認
 - Android 16 実機（最終確認: 2026-01-03）
 
+## 開発環境
+- Node.js 24.x が必要です
+- `mise` を使うと、推奨バージョンを repo 設定から揃えられます
+- `mise` を使わない場合も、Node.js 24.x を自前で用意すれば開発できます
+
 ## プライバシー
 - データは端末内のみで管理し、外部送信は行いません
 
@@ -49,5 +54,6 @@ npx eas-cli build -p android --profile preview
 
 ## ディレクトリ
 - `calmvibe/` … アプリ本体と開発用 README
+- `mise.toml` … 推奨 Node.js バージョンの定義
 - `.kiro/specs/calm-heart-rate-app/` … 要件・設計・タスク
 - `.kiro/specs/android-standalone-apk/` … スタンドアロンAPK対応の仕様

@@ -3,12 +3,24 @@
 開発者向けのセットアップ・運用メモです。アプリ概要はリポジトリルートの `README.md` を参照してください。
 
 ## セットアップ
+`mise` を使う場合は、`mise` を有効化したシェルで実行してください。
+
+推奨:
+```bash
+mise trust
+mise install
+cd calmvibe
+npm install
+```
+
+代替（`mise` を使わない場合）:
 ```bash
 cd calmvibe
 npm install
 ```
 
 ## 開発・実行
+- `mise` を使う場合は、初回に `mise trust` が必要です
 - 開発サーバー: `npm run start`
 - Android 実機: `npm run android`
 - Web: `npm run web`
