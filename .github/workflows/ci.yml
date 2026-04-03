@@ -15,19 +15,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Resolve Node Version
-        id: node_version
-        run: |
-          version="$(sed -n 's/^node = "\(.*\)"$/\1/p' mise.toml)"
-          if [ -z "$version" ]; then
-            echo "mise.toml から Node バージョンを取得できませんでした" >&2
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # CI は setup-node を使い続けるため、.node-version を互換用に維持する。
+      # ローカル / コーディングエージェント側の推奨定義は mise.toml を参照する。
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ steps.node_version.outputs.version }}
+          node-version-file: '.node-version'
           cache: npm
           cache-dependency-path: calmvibe/package-lock.json
       - name: Install
