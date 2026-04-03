@@ -36,6 +36,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const [editDraft, setEditDraft] = useState<RecordDraft | null>(null);
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
   const [editSource, setEditSource] = useState<SessionRecord | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -153,6 +154,11 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
 
   const requestDelete = () => {
     if (selectedIds.size === 0) return;
+    // WebではAlert.alertの確認ダイアログに依存せず、画面内モーダルで確実に確認できるようにする。
+    if (isWeb) {
+      setDeleteConfirmVisible(true);
+      return;
+    }
     const count = selectedIds.size;
     Alert.alert('選択した履歴を削除しますか？', `${count}件を削除しますか？`, [
       { text: 'キャンセル', style: 'cancel' },
@@ -272,6 +278,33 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
               </Pressable>
               <Pressable style={[styles.modalButton, styles.modalClose]} onPress={() => setSelected(null)}>
                 <Text style={styles.modalButtonLabel}>閉じる</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+      {deleteConfirmVisible && (
+        <View style={styles.modalBackdrop} testID="logs-delete-confirm-modal">
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>選択した履歴を削除しますか？</Text>
+            <Text style={styles.meta}>{selectedIds.size}件を削除しますか？</Text>
+            <View style={styles.detailActions}>
+              <Pressable
+                accessibilityLabel="logs-delete-cancel"
+                style={[styles.modalButton, styles.modalClose]}
+                onPress={() => setDeleteConfirmVisible(false)}
+              >
+                <Text style={styles.modalButtonLabel}>キャンセル</Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel="logs-delete-confirm"
+                style={[styles.modalButton, styles.modalDelete]}
+                onPress={() => {
+                  setDeleteConfirmVisible(false);
+                  void confirmDelete(Array.from(selectedIds));
+                }}
+              >
+                <Text style={styles.modalDeleteLabel}>削除</Text>
               </Pressable>
             </View>
           </View>
@@ -459,7 +492,9 @@ const styles = StyleSheet.create({
   modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignSelf: 'flex-end' },
   modalClose: { backgroundColor: '#e5e7eb' },
   modalEdit: { backgroundColor: '#2563eb' },
+  modalDelete: { backgroundColor: '#dc2626' },
   modalButtonLabel: { color: '#111', fontWeight: '700' },
+  modalDeleteLabel: { color: '#fff', fontWeight: '700' },
   footer: { paddingVertical: 16 },
   detailActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
 });
