@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { act, render, waitFor, fireEvent } from '@testing-library/react-native';
 import LogsScreen from '../logs';
 import { SessionRecord, SessionRepository } from '../../src/session/types';
@@ -64,6 +64,10 @@ const createRepo = (data: SessionRecord[]): SessionRepository => ({
 describe('LogsScreen', () => {
   beforeEach(() => {
     mockIsFocused = true;
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('最新順で履歴を表示し、ガイド種別や心拍を含めて表示する', async () => {
@@ -195,7 +199,37 @@ describe('LogsScreen', () => {
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('削除に失敗しました', 'もう一度お試しください');
     });
-    alertSpy.mockRestore();
+  });
+
+  it('Webでは確認モーダル経由で選択した履歴を削除する', async () => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    const deleteMany = jest.fn(async () => undefined);
+    const repo: SessionRepository = {
+      ...createRepo(records),
+      deleteMany,
+    };
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    const { getByLabelText, getByText, getByTestId, queryByLabelText } = render(<LogsScreen repo={repo} />);
+
+    await waitFor(() => {
+      expect(getByText('履歴')).toBeTruthy();
+    });
+
+    fireEvent.press(getByLabelText('logs-select-toggle'));
+    fireEvent.press(getByLabelText('log-select-2'));
+    fireEvent.press(getByLabelText('logs-delete'));
+
+    expect(getByTestId('logs-delete-confirm-modal')).toBeTruthy();
+    expect(alertSpy).not.toHaveBeenCalled();
+
+    fireEvent.press(getByLabelText('logs-delete-confirm'));
+
+    await waitFor(() => {
+      expect(deleteMany).toHaveBeenCalledWith(['2']);
+    });
+    await waitFor(() => {
+      expect(queryByLabelText('log-item-2')).toBeNull();
+    });
   });
 
   it('履歴詳細から編集モーダルを開き、既存値を初期表示する', async () => {
