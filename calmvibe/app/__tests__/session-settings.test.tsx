@@ -173,6 +173,7 @@ describe('SessionScreen guide start/stop (UseCase接続)', () => {
       fireEvent.press(getByText('開始'));
     });
     expect(useCase.start).toHaveBeenCalledWith({ mode: 'VIBRATION' }, expect.any(Object));
+    await findByText('停止');
     act(() => {
       useCase.emitStep('PULSE', 0);
       useCase.emitStep('PULSE', 1);

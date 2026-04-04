@@ -1,6 +1,17 @@
 # CalmVibe
 
-心拍ガイド（BPMベース）と呼吸ガイド（吸・止・吐フェーズ）で落ち着きを取り戻すためのシンプルなモバイルアプリ。
+心拍（BPM）/呼吸ガイドで、落ち着きを取り戻すための個人用モバイルアプリ。
+
+- 心拍ガイド：一定テンポで振動
+- 呼吸ガイド：吸う / 止める / 吐く をガイド
+- 履歴：セッションを端末内に記録（外部送信なし）
+
+## スクリーンショット
+![セッション画面](docs/screenshots/session.png)
+![履歴画面](docs/screenshots/logs.png)
+
+## 作成の動機
+不安や動揺時に、呼吸や心拍の基準になるリズムが欲しくて作りました。操作はワンタップ中心です。
 
 ## 主要機能
 - 心拍ガイド／呼吸ガイドの開始・停止
@@ -8,14 +19,23 @@
 - セッション記録と履歴閲覧
 
 ## 動作確認
-- Android 16 実機（2025-12-24）
+- Android 16 実機（EAS Build の `preview` APK で起動確認、最終確認: 2026-04-04）
+
+## 開発環境
+- Node.js 24.x が必要です
+- `mise` を使うと、推奨バージョンを repo 設定から揃えられます
+- `mise` を使わない場合も、Node.js 24.x を自前で用意すれば開発できます
+- `mise.toml` はローカル / コーディングエージェント向けの推奨定義、`.node-version` は CI / 互換向けの定義として併用します
+
+## プライバシー
+- データは端末内のみで管理し、外部送信は行いません
 
 ## Android（スタンドアロンAPK）
-Expo Go を使わずに端末へ直接インストールして動作させる手順です。
+Expo Go を使わずに APK をビルドして端末へインストールします。
 
 ### 要件
 - npm
-- Expo のアカウント (https://expo.dev/)
+- Expo のアカウント（expo.dev）
 
 ### ビルド
 ```bash
@@ -35,5 +55,6 @@ npx eas-cli build -p android --profile preview
 
 ## ディレクトリ
 - `calmvibe/` … アプリ本体と開発用 README
+- `mise.toml` … 推奨 Node.js バージョンの定義
 - `.kiro/specs/calm-heart-rate-app/` … 要件・設計・タスク
 - `.kiro/specs/android-standalone-apk/` … スタンドアロンAPK対応の仕様

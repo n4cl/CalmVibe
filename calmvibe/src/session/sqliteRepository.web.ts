@@ -1,22 +1,32 @@
 import { SessionListCursor, SessionPageResult, SessionRecord, SessionRepository, SessionRecordUpdate } from './types';
 
+// Webではリポジトリ生成単位で分断されないようモジュールスコープで共有する。
+let sharedStore: SessionRecord[] = [];
+let sharedNextId = 1;
+
+/**
+ * テストの独立性を保つためのリセット関数。
+ */
+export const resetSessionRepositoryStoreForTests = () => {
+  sharedStore = [];
+  sharedNextId = 1;
+};
+
 /**
  * Web用のメモリ実装。永続化は行わない。
  */
 export class SqliteSessionRepository implements SessionRepository {
-  private store: SessionRecord[] = [];
-
   async save(record: SessionRecord): Promise<void> {
     // idを内部で付ける
-    const nextId = String(this.store.length + 1);
-    this.store.push({ ...record, id: nextId });
+    const nextId = String(sharedNextId++);
+    sharedStore.push({ ...record, id: nextId });
   }
 
   async update(input: SessionRecordUpdate): Promise<void> {
-    const index = this.store.findIndex((record) => record.id === input.id);
+    const index = sharedStore.findIndex((record) => record.id === input.id);
     if (index === -1) return;
-    const current = this.store[index];
-    this.store[index] = {
+    const current = sharedStore[index];
+    sharedStore[index] = {
       ...current,
       guideType: input.guideType,
       bpm: input.bpm,
@@ -28,7 +38,7 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   async list(): Promise<SessionRecord[]> {
-    return [...this.store].sort(compareRecordsDesc);
+    return [...sharedStore].sort(compareRecordsDesc);
   }
 
   async listPage(input: {
@@ -37,7 +47,7 @@ export class SqliteSessionRepository implements SessionRepository {
   }): Promise<SessionPageResult> {
     const limit = Math.max(1, Math.floor(input.limit));
     const cursor = input.cursor ?? null;
-    const sorted = [...this.store].sort(compareRecordsDesc);
+    const sorted = [...sharedStore].sort(compareRecordsDesc);
     const filtered = cursor
       ? sorted.filter((record) => {
           if (record.recordedAt < cursor.recordedAt) return true;
@@ -57,13 +67,13 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   async get(id: string): Promise<SessionRecord | null> {
-    return this.store.find((r) => r.id === id) ?? null;
+    return sharedStore.find((r) => r.id === id) ?? null;
   }
 
   async deleteMany(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     const targetIds = new Set(ids);
-    this.store = this.store.filter((record) => !targetIds.has(record.id));
+    sharedStore = sharedStore.filter((record) => !targetIds.has(record.id));
   }
 }
 

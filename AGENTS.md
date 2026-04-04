@@ -28,6 +28,10 @@ AI-DLC（AI Development Life Cycle）上で動く、Kiro 風 Spec Driven Develop
 ## 開発ガイドライン
 - 返答は日本語で生成してください。
 - プロジェクトファイルに書き出す Markdown（例：requirements.md, design.md, tasks.md, research.md, 検証レポート）は、各仕様で設定されたターゲット言語で必ず記述してください（`spec.json.language` を参照）。
+- 運用ルールの詳細は必要な操作時のみ別ファイルを参照してください。
+  - PR を作成・更新する場合: `docs/agent-rules/pr.md`
+  - Issue を作成・更新する場合: `docs/agent-rules/issue.md`
+  - Git コミットを作成する場合: `docs/agent-rules/commit.md`
 
 ## 最小ワークフロー（Minimal Workflow）
 - Phase 0（任意）:
@@ -50,9 +54,15 @@ AI-DLC（AI Development Life Cycle）上で動く、Kiro 風 Spec Driven Develop
 - 承認フロー（3フェーズ）: Requirements → Design → Tasks → Implementation
 - 各フェーズで人間のレビューが必要。`-y` は意図的なファストトラック時のみ使用すること
 - steering は最新状態を保ち、`/prompts:kiro-spec-status` で整合性を確認すること
+- ドキュメント運用や GitHub / Git の書式は、`AGENTS.md` に長文で抱え込まず、専用ルールファイルへ分離して管理すること
+- 機能追加、挙動変更を伴う改善、不具合修正は、原則として 1 Issue に対して 1 PR で対応すること
+- 1 つの PR に、別 Issue として扱うべき独立した変更を混ぜないこと
+- 脆弱性対応や依存関係の保守更新は、必要に応じて Issue を省略してよい
+- Issue を省略する場合は、PR 本文に背景、対応範囲、確認内容を明記すること
 - ユーザーの指示に厳密に従い、その範囲内で自律的に行動すること：
   - 必要なコンテキストを収集し、この実行内で依頼内容をエンドツーエンドで完了させる
   - ただし、必須情報が欠けている／指示が致命的に曖昧な場合に限り質問する
+- Node.js ツールチェーンに依存するコマンド（例: `node`, `npm`, `npx`, `expo`, `eas`）は、`mise.toml` で解決された環境を前提に実行すること
 - コードコメント（インラインコメント、docstring）は日本語で書くこと（人間のレビュー可読性を優先）。
 - 「意図がコードから読み取りづらい箇所」には、なぜそうしたかが分かる短いコメントを残すこと（What ではなく Why を優先）。
 - 関数・クラス・公開APIには、役割・前提・入出力・副作用（必要ならエラー条件）を簡潔に説明する docstring/コメントを付けること。

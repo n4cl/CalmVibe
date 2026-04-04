@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordDraft, SessionListCursor, SessionRecord, SessionRecordUpdate, SessionRepository } from '../src/session/types';
@@ -17,7 +17,9 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const repo = useMemo<SessionRepository>(() => injectedRepo ?? new SqliteSessionRepository(), [injectedRepo]);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
+  const wasFocusedRef = useRef(false);
   const isFocused = useIsFocused();
+  const isWeb = Platform.OS === 'web';
   // SafeAreaViewだとFlatListの余白が崩れやすいため、上部だけ手動で足す
   const insets = useSafeAreaInsets();
   const containerStyle = [styles.container, { paddingTop: basePadding + insets.top }];
@@ -34,6 +36,7 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
   const [editDraft, setEditDraft] = useState<RecordDraft | null>(null);
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
   const [editSource, setEditSource] = useState<SessionRecord | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -41,23 +44,6 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
       mountedRef.current = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!isFocused || hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-    (async () => {
-      setLoading(true);
-      setLoadingMore(false);
-      setCursor(null);
-      setHasNext(false);
-      const page = await repo.listPage({ limit: PAGE_SIZE, cursor: null });
-      if (!mountedRef.current) return;
-      setData(page.records);
-      setCursor(page.nextCursor ?? null);
-      setHasNext(page.hasNext);
-      setLoading(false);
-    })();
-  }, [isFocused, repo]);
 
   const loadMore = useCallback(async () => {
     if (loading || loadingMore || !hasNext) return;
@@ -70,6 +56,19 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setLoadingMore(false);
   }, [cursor, hasNext, loading, loadingMore, repo]);
 
+  const loadInitial = useCallback(async () => {
+    setLoading(true);
+    setLoadingMore(false);
+    setCursor(null);
+    setHasNext(false);
+    const page = await repo.listPage({ limit: PAGE_SIZE, cursor: null });
+    if (!mountedRef.current) return;
+    setData(page.records);
+    setCursor(page.nextCursor ?? null);
+    setHasNext(page.hasNext);
+    setLoading(false);
+  }, [repo]);
+
   const refreshLatest = useCallback(async () => {
     if (loading || refreshing) return;
     setRefreshing(true);
@@ -78,6 +77,23 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
     setData((prev) => mergeLatestRecords(prev, page.records));
     setRefreshing(false);
   }, [loading, refreshing, repo]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      wasFocusedRef.current = false;
+      return;
+    }
+    if (wasFocusedRef.current) return;
+    wasFocusedRef.current = true;
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      void loadInitial();
+      return;
+    }
+    if (isWeb) {
+      void refreshLatest();
+    }
+  }, [isFocused, isWeb, loadInitial, refreshLatest]);
 
   const openEdit = (record: SessionRecord) => {
     setEditSource(record);
@@ -138,6 +154,11 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
 
   const requestDelete = () => {
     if (selectedIds.size === 0) return;
+    // WebではAlert.alertの確認ダイアログに依存せず、画面内モーダルで確実に確認できるようにする。
+    if (isWeb) {
+      setDeleteConfirmVisible(true);
+      return;
+    }
     const count = selectedIds.size;
     Alert.alert('選択した履歴を削除しますか？', `${count}件を削除しますか？`, [
       { text: 'キャンセル', style: 'cancel' },
@@ -257,6 +278,33 @@ export default function LogsScreen({ repo: injectedRepo }: Props) {
               </Pressable>
               <Pressable style={[styles.modalButton, styles.modalClose]} onPress={() => setSelected(null)}>
                 <Text style={styles.modalButtonLabel}>閉じる</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+      {deleteConfirmVisible && (
+        <View style={styles.modalBackdrop} testID="logs-delete-confirm-modal">
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>選択した履歴を削除しますか？</Text>
+            <Text style={styles.meta}>{selectedIds.size}件を削除しますか？</Text>
+            <View style={styles.detailActions}>
+              <Pressable
+                accessibilityLabel="logs-delete-cancel"
+                style={[styles.modalButton, styles.modalClose]}
+                onPress={() => setDeleteConfirmVisible(false)}
+              >
+                <Text style={styles.modalButtonLabel}>キャンセル</Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel="logs-delete-confirm"
+                style={[styles.modalButton, styles.modalDelete]}
+                onPress={() => {
+                  setDeleteConfirmVisible(false);
+                  void confirmDelete(Array.from(selectedIds));
+                }}
+              >
+                <Text style={styles.modalDeleteLabel}>削除</Text>
               </Pressable>
             </View>
           </View>
@@ -444,7 +492,9 @@ const styles = StyleSheet.create({
   modalButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignSelf: 'flex-end' },
   modalClose: { backgroundColor: '#e5e7eb' },
   modalEdit: { backgroundColor: '#2563eb' },
+  modalDelete: { backgroundColor: '#dc2626' },
   modalButtonLabel: { color: '#111', fontWeight: '700' },
+  modalDeleteLabel: { color: '#fff', fontWeight: '700' },
   footer: { paddingVertical: 16 },
   detailActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
 });

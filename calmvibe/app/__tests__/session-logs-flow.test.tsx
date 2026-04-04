@@ -61,6 +61,7 @@ describe('Session → Logs integration (web haptics fallback)', () => {
       fireEvent.press(getByText('開始'));
     });
     await findByText('状態: 心拍ガイド実行中');
+    await findByText('停止');
     await findByText('振動が利用できないため、視覚ガイドのみで継続します。');
 
     await act(async () => {
@@ -73,6 +74,7 @@ describe('Session → Logs integration (web haptics fallback)', () => {
       fireEvent.press(getByText('開始'));
     });
     await findByText('状態: 呼吸ガイド実行中');
+    await findByText('停止');
     await act(async () => {
       fireEvent.press(getByText('停止'));
     });

@@ -110,26 +110,18 @@ export default function SessionScreen({ settingsRepo, useCase: injectedUseCase, 
       <View style={styles.card}>
         <View style={styles.actionRow}>
           <Pressable
-            style={[
-              styles.actionButton,
-              state.running !== 'none' && styles.actionButtonDisabled,
-              state.running !== 'none' && styles.previewActive,
-            ]}
+            style={[styles.actionButton, state.running !== 'none' && styles.actionButtonOutline]}
             onPress={async () => {
-              await viewModel.start();
-            }}
-            disabled={state.running !== 'none'}
-          >
-            <Text style={styles.saveLabel}>開始</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.actionButton, state.running === 'none' && styles.actionButtonDisabled]}
-            onPress={async () => {
+              if (state.running === 'none') {
+                await viewModel.start();
+                return;
+              }
               await viewModel.stop();
             }}
-            disabled={state.running === 'none'}
           >
-            <Text style={styles.saveLabel}>停止</Text>
+            <Text style={[styles.actionLabel, state.running !== 'none' && styles.actionLabelOutline]}>
+              {state.running === 'none' ? '開始' : '停止'}
+            </Text>
           </Pressable>
         </View>
         <View style={styles.recordRow}>
@@ -348,10 +340,19 @@ const styles = StyleSheet.create({
   saveButtonDisabled: { opacity: 0.6 },
   saveLabel: { color: '#fff', fontWeight: '700' },
   previewButton: { marginTop: 10, paddingVertical: 10, borderRadius: 10, backgroundColor: '#e8f1ff', alignItems: 'center', borderWidth: 1, borderColor: '#2563eb' },
-  previewActive: { backgroundColor: '#d6e7ff' },
   previewLabel: { color: '#1746b4', fontWeight: '700' },
-  actionButton: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center' },
-  actionButtonDisabled: { opacity: 0.6 },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#2563eb',
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    alignItems: 'center',
+  },
+  actionButtonOutline: { backgroundColor: '#fff' },
+  actionLabel: { color: '#fff', fontWeight: '700' },
+  actionLabelOutline: { color: '#2563eb' },
   recordRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   recordButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#94a3b8', backgroundColor: '#fff' },
   recordLabel: { color: '#1f2937', fontWeight: '700' },
